@@ -1,0 +1,2 @@
+from .invoice_collection_intelligence_service import InvoiceCollectionIntelligenceService
+__all__ = ["InvoiceCollectionIntelligenceService"]

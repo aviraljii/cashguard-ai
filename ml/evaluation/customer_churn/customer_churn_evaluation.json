@@ -1,0 +1,114 @@
+{
+  "data_quality": {
+    "rows": 7352,
+    "snapshot_date_range": [
+      "2024-11-28",
+      "2026-04-22"
+    ],
+    "distinct_snapshot_dates": 18,
+    "duplicate_customer_snapshot_rows": 0,
+    "null_values_in_features": 0,
+    "future_snapshot_rows": 0,
+    "target_rate": 17.25,
+    "leakage_control": "Features use sales on/before snapshot_date; churn target checks only the strictly following 90 days; incomplete windows are excluded."
+  },
+  "split_rows": {
+    "train": 3452,
+    "validation": 1927,
+    "test": 1973
+  },
+  "churn_rates": {
+    "train": 23.2,
+    "validation": 12.87,
+    "test": 11.1
+  },
+  "evaluations": {
+    "logistic_regression": {
+      "validation": {
+        "accuracy": 0.795,
+        "precision": 0.2724,
+        "recall": 0.3548,
+        "f1": 0.3082,
+        "roc_auc": 0.7749,
+        "confusion_matrix": [
+          [
+            1444,
+            235
+          ],
+          [
+            160,
+            88
+          ]
+        ],
+        "churn_rate": 12.87,
+        "rows": 1927
+      },
+      "test": {
+        "accuracy": 0.8621,
+        "precision": 0.2569,
+        "recall": 0.1279,
+        "f1": 0.1707,
+        "roc_auc": 0.7907,
+        "confusion_matrix": [
+          [
+            1673,
+            81
+          ],
+          [
+            191,
+            28
+          ]
+        ],
+        "churn_rate": 11.1,
+        "rows": 1973
+      }
+    },
+    "xgboost": {
+      "validation": {
+        "accuracy": 0.807,
+        "precision": 0.3025,
+        "recall": 0.3831,
+        "f1": 0.3381,
+        "roc_auc": 0.7747,
+        "confusion_matrix": [
+          [
+            1460,
+            219
+          ],
+          [
+            153,
+            95
+          ]
+        ],
+        "churn_rate": 12.87,
+        "rows": 1927
+      },
+      "test": {
+        "accuracy": 0.8652,
+        "precision": 0.2526,
+        "recall": 0.1096,
+        "f1": 0.1529,
+        "roc_auc": 0.7785,
+        "confusion_matrix": [
+          [
+            1683,
+            71
+          ],
+          [
+            195,
+            24
+          ]
+        ],
+        "churn_rate": 11.1,
+        "rows": 1973
+      }
+    }
+  },
+  "selected_model": "logistic_regression",
+  "prediction_example": {
+    "customer_id": "0011d3f4-9e5e-47b6-a93a-e2d8f694b972",
+    "churn_probability": 0.162139,
+    "churn_score": 16.21,
+    "risk_category": "Low"
+  }
+}

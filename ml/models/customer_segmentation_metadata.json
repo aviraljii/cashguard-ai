@@ -1,0 +1,95 @@
+{
+  "model_version": "1.0",
+  "algorithm": "KMeans",
+  "feature_columns": [
+    "total_orders",
+    "total_sales_value",
+    "average_order_value",
+    "purchase_frequency",
+    "recency_days",
+    "customer_age_days",
+    "active_months",
+    "recent_30_day_orders",
+    "recent_30_day_sales",
+    "recent_90_day_orders",
+    "recent_90_day_sales",
+    "average_days_between_orders",
+    "sales_growth_rate"
+  ],
+  "preprocessing": "log1p then standard scaling for non-negative behavioral features; standard scaling for sales_growth_rate",
+  "selected_k": 2,
+  "k_evaluation": {
+    "2": {
+      "inertia": 4048.29,
+      "silhouette_score": 0.3271,
+      "minimum_cluster_size": 221
+    },
+    "3": {
+      "inertia": 3332.83,
+      "silhouette_score": 0.2795,
+      "minimum_cluster_size": 77
+    },
+    "4": {
+      "inertia": 2903.72,
+      "silhouette_score": 0.2743,
+      "minimum_cluster_size": 47
+    },
+    "5": {
+      "inertia": 2596.45,
+      "silhouette_score": 0.2707,
+      "minimum_cluster_size": 55
+    },
+    "6": {
+      "inertia": 2318.21,
+      "silhouette_score": 0.2799,
+      "minimum_cluster_size": 10
+    },
+    "7": {
+      "inertia": 2130.05,
+      "silhouette_score": 0.2804,
+      "minimum_cluster_size": 10
+    },
+    "8": {
+      "inertia": 1951.83,
+      "silhouette_score": 0.2889,
+      "minimum_cluster_size": 5
+    }
+  },
+  "silhouette_score": 0.3271,
+  "cluster_sizes": {
+    "0": 279,
+    "1": 221
+  },
+  "cluster_profiles": [
+    {
+      "cluster_id": 0,
+      "segment_name": "High Value Loyal",
+      "customer_count": 279,
+      "average_revenue": 77938.1,
+      "median_revenue": 60517.83,
+      "average_orders": 29.76,
+      "average_order_value": 2631.08,
+      "average_recency_days": 10.11,
+      "average_purchase_frequency": 0.79,
+      "percentage": 55.8
+    },
+    {
+      "cluster_id": 1,
+      "segment_name": "At Risk",
+      "customer_count": 221,
+      "average_revenue": 19930.86,
+      "median_revenue": 17500.73,
+      "average_orders": 7.68,
+      "average_order_value": 2615.04,
+      "average_recency_days": 61.16,
+      "average_purchase_frequency": 0.21,
+      "percentage": 44.2
+    }
+  ],
+  "segment_names": {
+    "0": "High Value Loyal",
+    "1": "At Risk"
+  },
+  "as_of_date": "2026-08-14",
+  "trained_at_utc": "2026-08-15T15:21:52.721536+00:00"
+}

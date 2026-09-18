@@ -1,0 +1,105 @@
+{
+  "dataset": {
+    "rows": 2754,
+    "columns": 16,
+    "target_distribution": {
+      "0": 1319,
+      "1": 1435
+    },
+    "train_rows": 2203,
+    "test_rows": 551
+  },
+  "evaluations": {
+    "logistic_regression": {
+      "accuracy": 0.5844,
+      "precision": 0.6466,
+      "recall": 0.3209,
+      "f1": 0.4289,
+      "roc_auc": 0.5645,
+      "confusion_matrix": [
+        [
+          236,
+          47
+        ],
+        [
+          182,
+          86
+        ]
+      ]
+    },
+    "xgboost": {
+      "accuracy": 0.5735,
+      "precision": 0.626,
+      "recall": 0.306,
+      "f1": 0.411,
+      "roc_auc": 0.5826,
+      "confusion_matrix": [
+        [
+          234,
+          49
+        ],
+        [
+          186,
+          82
+        ]
+      ]
+    }
+  },
+  "selected_model": "xgboost",
+  "feature_importance": [
+    {
+      "feature": "historical_average_payment_delay_days",
+      "importance": 0.216726
+    },
+    {
+      "feature": "historical_max_payment_delay_days",
+      "importance": 0.145193
+    },
+    {
+      "feature": "historical_late_payment_rate",
+      "importance": 0.090711
+    },
+    {
+      "feature": "payment_terms_days",
+      "importance": 0.0712
+    },
+    {
+      "feature": "historical_late_payment_count",
+      "importance": 0.068418
+    },
+    {
+      "feature": "historical_outstanding_ratio",
+      "importance": 0.066741
+    },
+    {
+      "feature": "historical_total_invoice_value",
+      "importance": 0.062762
+    },
+    {
+      "feature": "historical_average_invoice_amount",
+      "importance": 0.060975
+    },
+    {
+      "feature": "historical_invoice_count",
+      "importance": 0.060741
+    },
+    {
+      "feature": "invoice_amount",
+      "importance": 0.058552
+    },
+    {
+      "feature": "historical_paid_invoice_count",
+      "importance": 0.056003
+    },
+    {
+      "feature": "historical_outstanding_amount",
+      "importance": 0.041977
+    }
+  ],
+  "prediction_example": {
+    "customer_id": "e05c9e8f-2852-4c9d-9c2a-756d89ba64a0",
+    "risk_probability": 0.6194,
+    "risk_score": 62,
+    "risk_category": "Medium"
+  }
+}

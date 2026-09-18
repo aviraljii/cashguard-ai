@@ -1,0 +1,3 @@
+"""
+CashGuard-AI backend package.
+"""

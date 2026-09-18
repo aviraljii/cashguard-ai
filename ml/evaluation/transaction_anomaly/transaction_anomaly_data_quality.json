@@ -1,0 +1,107 @@
+{
+  "source_diagnostics": {
+    "row_count": 10000,
+    "date_range": [
+      "2024-08-15",
+      "2026-09-28"
+    ],
+    "future_dated_rows": 82,
+    "null_amount_rows": 0,
+    "non_positive_amount_rows": 0,
+    "duplicate_id_rows": 0,
+    "min_amount": 24.07,
+    "max_amount": 138641.66,
+    "average_amount": 10888.61,
+    "transaction_type_category_counts": [
+      {
+        "transaction_type": "credit",
+        "category": "Bank charges",
+        "transaction_count": 134
+      },
+      {
+        "transaction_type": "credit",
+        "category": "Customer receipt",
+        "transaction_count": 4542
+      },
+      {
+        "transaction_type": "credit",
+        "category": "Miscellaneous",
+        "transaction_count": 132
+      },
+      {
+        "transaction_type": "credit",
+        "category": "Transfer",
+        "transaction_count": 154
+      },
+      {
+        "transaction_type": "debit",
+        "category": "Bank charges",
+        "transaction_count": 257
+      },
+      {
+        "transaction_type": "debit",
+        "category": "Inventory-related expenses",
+        "transaction_count": 444
+      },
+      {
+        "transaction_type": "debit",
+        "category": "Marketing",
+        "transaction_count": 442
+      },
+      {
+        "transaction_type": "debit",
+        "category": "Miscellaneous",
+        "transaction_count": 314
+      },
+      {
+        "transaction_type": "debit",
+        "category": "Office expenses",
+        "transaction_count": 471
+      },
+      {
+        "transaction_type": "debit",
+        "category": "Rent",
+        "transaction_count": 300
+      },
+      {
+        "transaction_type": "debit",
+        "category": "Salaries",
+        "transaction_count": 300
+      },
+      {
+        "transaction_type": "debit",
+        "category": "Software/services",
+        "transaction_count": 300
+      },
+      {
+        "transaction_type": "debit",
+        "category": "Supplier payment",
+        "transaction_count": 1200
+      },
+      {
+        "transaction_type": "debit",
+        "category": "Transfer",
+        "transaction_count": 267
+      },
+      {
+        "transaction_type": "debit",
+        "category": "Travel",
+        "transaction_count": 443
+      },
+      {
+        "transaction_type": "debit",
+        "category": "Utilities",
+        "transaction_count": 300
+      }
+    ]
+  },
+  "scorable_rows": 9918,
+  "scoring_date_range": [
+    "2024-08-15",
+    "2026-08-15"
+  ],
+  "duplicate_transaction_ids_in_dataset": 0,
+  "null_values_in_required_model_features": 0,
+  "future_dates_in_dataset": 0,
+  "leakage_control": "All rolling category/type statistics use only the preceding 30 calendar days; current-day and future transactions are excluded."
+}

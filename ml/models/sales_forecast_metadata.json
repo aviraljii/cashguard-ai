@@ -1,0 +1,73 @@
+{
+  "model_name": "xgboost_regressor",
+  "target_column": "daily_sales_amount",
+  "feature_columns": [
+    "sales_lag_1",
+    "sales_lag_7",
+    "sales_lag_14",
+    "sales_lag_30",
+    "rolling_7_day_sales",
+    "rolling_14_day_sales",
+    "rolling_30_day_sales",
+    "rolling_7_day_orders",
+    "rolling_30_day_orders",
+    "day_of_week",
+    "day_of_month",
+    "month",
+    "days_since_series_start"
+  ],
+  "business_id": "9ae1ca9a-c01b-423f-8f5c-7af4a702a6f1",
+  "training_date_range": [
+    "2024-09-29",
+    "2025-11-13"
+  ],
+  "validation_date_range": [
+    "2025-11-14",
+    "2026-03-30"
+  ],
+  "test_date_range": [
+    "2026-03-31",
+    "2026-08-14"
+  ],
+  "evaluation_metrics": {
+    "seasonal_naive": {
+      "validation": {
+        "mae": 19345.7,
+        "rmse": 25174.93,
+        "r2": -0.2801,
+        "mape": 43.03,
+        "mape_evaluated_rows": 137,
+        "zero_actual_rows_excluded_from_mape": 0
+      },
+      "test": {
+        "mae": 22574.18,
+        "rmse": 30129.08,
+        "r2": -0.5496,
+        "mape": 39.8,
+        "mape_evaluated_rows": 137,
+        "zero_actual_rows_excluded_from_mape": 0
+      }
+    },
+    "xgboost": {
+      "validation": {
+        "mae": 20690.29,
+        "rmse": 25124.13,
+        "r2": -0.275,
+        "mape": 51.13,
+        "mape_evaluated_rows": 137,
+        "zero_actual_rows_excluded_from_mape": 0
+      },
+      "test": {
+        "mae": 22326.86,
+        "rmse": 29339.83,
+        "r2": -0.4695,
+        "mape": 37.54,
+        "mape_evaluated_rows": 137,
+        "zero_actual_rows_excluded_from_mape": 0
+      }
+    }
+  },
+  "trained_at_utc": "2026-08-15T13:31:54.219936+00:00",
+  "data_source": "Completed, non-future sales header rows aggregated by sale_date; sale_items are not joined.",
+  "order_forecast_limitation": "Order count is a historical feature only; predicted_orders is null because no order-count model is trained."
+}

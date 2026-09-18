@@ -1,0 +1,12 @@
+{
+  "daily_rows": 731,
+  "feature_ready_rows": 701,
+  "date_range": {
+    "start": "2024-08-15",
+    "end": "2026-08-15"
+  },
+  "missing_dates": 0,
+  "null_values_in_daily_data": 0,
+  "null_values_in_feature_data": 0,
+  "leakage_control": "Rolling and lag features use values through t-1 only; target is day t net cash flow."
+}

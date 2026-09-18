@@ -1,0 +1,70 @@
+{
+  "target": "late_payment_target",
+  "feature_columns": [
+    "invoice_amount",
+    "payment_terms_days",
+    "historical_invoice_count",
+    "historical_total_invoice_value",
+    "historical_average_invoice_amount",
+    "historical_paid_invoice_count",
+    "historical_late_payment_count",
+    "historical_late_payment_rate",
+    "historical_average_payment_delay_days",
+    "historical_max_payment_delay_days",
+    "historical_outstanding_amount",
+    "historical_outstanding_ratio"
+  ],
+  "selected_model": "xgboost",
+  "random_seed": 42,
+  "feature_importance": [
+    {
+      "feature": "historical_average_payment_delay_days",
+      "importance": 0.216726
+    },
+    {
+      "feature": "historical_max_payment_delay_days",
+      "importance": 0.145193
+    },
+    {
+      "feature": "historical_late_payment_rate",
+      "importance": 0.090711
+    },
+    {
+      "feature": "payment_terms_days",
+      "importance": 0.0712
+    },
+    {
+      "feature": "historical_late_payment_count",
+      "importance": 0.068418
+    },
+    {
+      "feature": "historical_outstanding_ratio",
+      "importance": 0.066741
+    },
+    {
+      "feature": "historical_total_invoice_value",
+      "importance": 0.062762
+    },
+    {
+      "feature": "historical_average_invoice_amount",
+      "importance": 0.060975
+    },
+    {
+      "feature": "historical_invoice_count",
+      "importance": 0.060741
+    },
+    {
+      "feature": "invoice_amount",
+      "importance": 0.058552
+    },
+    {
+      "feature": "historical_paid_invoice_count",
+      "importance": 0.056003
+    },
+    {
+      "feature": "historical_outstanding_amount",
+      "importance": 0.041977
+    }
+  ],
+  "target_definition": "1 when the invoice's final observed payment date is after its due date."
+}

@@ -1,0 +1,64 @@
+{
+  "rows": 2754,
+  "columns": 16,
+  "dtypes": {
+    "invoice_id": "str",
+    "customer_id": "str",
+    "as_of_date": "datetime64[s]",
+    "invoice_amount": "object",
+    "payment_terms_days": "int64",
+    "historical_invoice_count": "int64",
+    "historical_total_invoice_value": "object",
+    "historical_average_invoice_amount": "object",
+    "historical_paid_invoice_count": "object",
+    "historical_late_payment_count": "object",
+    "historical_late_payment_rate": "object",
+    "historical_average_payment_delay_days": "object",
+    "historical_max_payment_delay_days": "int64",
+    "historical_outstanding_amount": "object",
+    "historical_outstanding_ratio": "object",
+    "late_payment_target": "int64"
+  },
+  "missing_values": {
+    "invoice_id": 0,
+    "customer_id": 0,
+    "as_of_date": 0,
+    "invoice_amount": 0,
+    "payment_terms_days": 0,
+    "historical_invoice_count": 0,
+    "historical_total_invoice_value": 0,
+    "historical_average_invoice_amount": 0,
+    "historical_paid_invoice_count": 0,
+    "historical_late_payment_count": 0,
+    "historical_late_payment_rate": 0,
+    "historical_average_payment_delay_days": 0,
+    "historical_max_payment_delay_days": 0,
+    "historical_outstanding_amount": 0,
+    "historical_outstanding_ratio": 0,
+    "late_payment_target": 0
+  },
+  "duplicate_rows": 0,
+  "infinite_values": 0,
+  "target_distribution": {
+    "0": 1319,
+    "1": 1435
+  },
+  "numeric_ranges": {
+    "payment_terms_days": {
+      "min": 15.0,
+      "max": 45.0
+    },
+    "historical_invoice_count": {
+      "min": 3.0,
+      "max": 35.0
+    },
+    "historical_max_payment_delay_days": {
+      "min": 0.0,
+      "max": 80.0
+    },
+    "late_payment_target": {
+      "min": 0.0,
+      "max": 1.0
+    }
+  }
+}

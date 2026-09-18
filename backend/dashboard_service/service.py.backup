@@ -1,0 +1,281 @@
+from __future__ import annotations
+
+from typing import Any
+
+from database import get_database_connection
+
+
+class DashboardService:
+    """
+    Service layer for CashGuard-AI dashboard.
+
+    Reads real financial data from the existing MySQL database.
+    """
+
+    def get_dashboard(self) -> dict[str, Any]:
+        with get_database_connection() as connection:
+            cursor = connection.cursor(dictionary=True)
+
+            try:
+                # ============================================================
+                # REVENUE
+                # ============================================================
+
+                cursor.execute(
+                    """
+                    SELECT
+                        COALESCE(SUM(total_amount), 0)
+                        AS total_revenue
+                    FROM sales
+                    WHERE status = 'completed'
+                    """
+                )
+
+                revenue_row = cursor.fetchone() or {}
+
+                revenue = float(
+                    revenue_row.get("total_revenue") or 0
+                )
+
+                # ============================================================
+                # EXPENSES
+                # ============================================================
+
+                cursor.execute(
+                    """
+                    SELECT
+                        COALESCE(SUM(amount), 0)
+                        AS total_expenses
+                    FROM expenses
+                    """
+                )
+
+                expense_row = cursor.fetchone() or {}
+
+                expenses = float(
+                    expense_row.get("total_expenses") or 0
+                )
+
+                # ============================================================
+                # RECEIVABLES
+                # ============================================================
+
+                cursor.execute(
+                    """
+                    SELECT
+                        COALESCE(
+                            SUM(
+                                total_amount - amount_paid
+                            ),
+                            0
+                        ) AS total_receivables
+                    FROM invoices
+                    WHERE status NOT IN (
+                        'paid',
+                        'cancelled'
+                    )
+                    """
+                )
+
+                receivable_row = cursor.fetchone() or {}
+
+                receivables = float(
+                    receivable_row.get(
+                        "total_receivables"
+                    )
+                    or 0
+                )
+
+                # ============================================================
+                # COLLECTIONS
+                # ============================================================
+
+                cursor.execute(
+                    """
+                    SELECT
+                        COALESCE(SUM(amount), 0)
+                        AS total_collected
+                    FROM invoice_payments
+                    """
+                )
+
+                collected_row = cursor.fetchone() or {}
+
+                collected = float(
+                    collected_row.get(
+                        "total_collected"
+                    )
+                    or 0
+                )
+
+                # ============================================================
+                # CASH FLOW
+                # ============================================================
+
+                cursor.execute(
+                    """
+                    SELECT
+                        COALESCE(
+                            SUM(cash_inflow),
+                            0
+                        ) AS cash_inflow,
+
+                        COALESCE(
+                            SUM(cash_outflow),
+                            0
+                        ) AS cash_outflow,
+
+                        COALESCE(
+                            SUM(net_cash_flow),
+                            0
+                        ) AS net_cash_flow
+
+                    FROM daily_cash_flow
+                    """
+                )
+
+                cash_flow_row = cursor.fetchone() or {}
+
+                cash_inflow = float(
+                    cash_flow_row.get(
+                        "cash_inflow"
+                    )
+                    or 0
+                )
+
+                cash_outflow = float(
+                    cash_flow_row.get(
+                        "cash_outflow"
+                    )
+                    or 0
+                )
+
+                net_cash_flow = float(
+                    cash_flow_row.get(
+                        "net_cash_flow"
+                    )
+                    or 0
+                )
+
+                # ============================================================
+                # INVOICE SUMMARY
+                # ============================================================
+
+                cursor.execute(
+                    """
+                    SELECT
+                        COUNT(*) AS total_invoices,
+
+                        COALESCE(
+                            SUM(total_amount),
+                            0
+                        ) AS invoice_value,
+
+                        COALESCE(
+                            SUM(amount_paid),
+                            0
+                        ) AS invoice_paid
+
+                    FROM invoices
+                    """
+                )
+
+                invoice_row = cursor.fetchone() or {}
+
+                invoice_count = int(
+                    invoice_row.get(
+                        "total_invoices"
+                    )
+                    or 0
+                )
+
+                invoice_value = float(
+                    invoice_row.get(
+                        "invoice_value"
+                    )
+                    or 0
+                )
+
+                invoice_paid = float(
+                    invoice_row.get(
+                        "invoice_paid"
+                    )
+                    or 0
+                )
+
+                # ============================================================
+                # CUSTOMERS
+                # ============================================================
+
+                cursor.execute(
+                    """
+                    SELECT
+                        COUNT(*) AS total_customers
+                    FROM customers
+                    WHERE status = 'active'
+                    """
+                )
+
+                customer_row = cursor.fetchone() or {}
+
+                customers = int(
+                    customer_row.get(
+                        "total_customers"
+                    )
+                    or 0
+                )
+
+                # ============================================================
+                # SUPPLIERS
+                # ============================================================
+
+                cursor.execute(
+                    """
+                    SELECT
+                        COUNT(*) AS total_suppliers
+                    FROM suppliers
+                    WHERE status = 'active'
+                    """
+                )
+
+                supplier_row = cursor.fetchone() or {}
+
+                suppliers = int(
+                    supplier_row.get(
+                        "total_suppliers"
+                    )
+                    or 0
+                )
+
+                # ============================================================
+                # RETURN
+                # ============================================================
+
+                return {
+                    "status": "success",
+
+                    "summary": {
+                        "revenue": revenue,
+                        "expenses": expenses,
+                        "receivables": receivables,
+                        "collected": collected,
+
+                        "cash_flow": {
+                            "inflow": cash_inflow,
+                            "outflow": cash_outflow,
+                            "net": net_cash_flow,
+                        },
+
+                        "invoices": {
+                            "count": invoice_count,
+                            "value": invoice_value,
+                            "paid": invoice_paid,
+                        },
+
+                        "customers": customers,
+                        "suppliers": suppliers,
+                    },
+                }
+
+            finally:
+                cursor.close()

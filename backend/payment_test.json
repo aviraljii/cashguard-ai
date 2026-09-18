@@ -1,0 +1,12 @@
+{
+    "customer_id": "customer-001",
+    "invoice_id": "invoice-001",
+    "account_id": "YOUR_REAL_BANK_ACCOUNT_ID",
+    "amount": 1000.00,
+    "currency": "INR",
+    "payment_method": "bank_transfer",
+    "provider": "sandbox",
+    "metadata": {
+        "source": "ml-training"
+    }
+}

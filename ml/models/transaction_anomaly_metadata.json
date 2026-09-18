@@ -1,0 +1,46 @@
+{
+  "model_version": "1.0",
+  "source_table": "bank_transactions",
+  "model_type": "IsolationForest",
+  "feature_columns": [
+    "log_amount",
+    "is_credit",
+    "has_supplier_context",
+    "day_of_week",
+    "day_of_month",
+    "month",
+    "historical_transaction_count_30d",
+    "rolling_average_amount_30d",
+    "rolling_stddev_amount_30d",
+    "transaction_amount_relative_to_history",
+    "transaction_amount_zscore",
+    "transaction_frequency_30d",
+    "category_share_of_type_30d",
+    "history_available_30d",
+    "transaction_type",
+    "category"
+  ],
+  "contamination": 0.03,
+  "anomaly_score_definition": "Negative Isolation Forest score_samples; larger values are more anomalous and are not probabilities.",
+  "anomaly_score_threshold": 0.5225971547188027,
+  "risk_score_thresholds": {
+    "low": 0.48104491116170534,
+    "medium": 0.5004468316820831,
+    "high": 0.5225971547188027
+  },
+  "feature_preprocessing": "Log amount; median-imputed/standardized numeric features; one-hot category and transaction type; early-history values represented by history_available_30d.",
+  "business_id": "9ae1ca9a-c01b-423f-8f5c-7af4a702a6f1",
+  "training_date_range": [
+    "2024-08-15",
+    "2026-05-19"
+  ],
+  "scoring_date_range": [
+    "2026-05-19",
+    "2026-08-15"
+  ],
+  "production_model_fit_date_range": [
+    "2024-08-15",
+    "2026-08-15"
+  ],
+  "trained_at_utc": "2026-08-15T13:39:45.345476+00:00"
+}

@@ -1,0 +1,18 @@
+{
+  "daily_rows": 715,
+  "feature_ready_rows": 685,
+  "date_range": {
+    "start": "2024-08-30",
+    "end": "2026-08-14"
+  },
+  "missing_dates": 0,
+  "null_values_in_daily_data": 0,
+  "null_values_in_feature_data": 0,
+  "future_dates_in_dataset": 0,
+  "source_diagnostics": {
+    "future_dated_sales_rows": 0,
+    "non_completed_sales_rows": 0,
+    "duplicate_business_sale_numbers": 0
+  },
+  "leakage_control": "Sales lags and rolling values use data through t-1 only; target is day t daily_sales_amount."
+}

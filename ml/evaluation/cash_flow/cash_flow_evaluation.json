@@ -1,0 +1,90 @@
+{
+  "data_quality": {
+    "daily_rows": 731,
+    "feature_ready_rows": 701,
+    "date_range": {
+      "start": "2024-08-15",
+      "end": "2026-08-15"
+    },
+    "missing_dates": 0,
+    "null_values_in_daily_data": 0,
+    "null_values_in_feature_data": 0,
+    "leakage_control": "Rolling and lag features use values through t-1 only; target is day t net cash flow."
+  },
+  "split_rows": {
+    "train": 420,
+    "validation": 140,
+    "test": 141
+  },
+  "evaluations": {
+    "seasonal_naive": {
+      "validation": {
+        "mae": 92416.59,
+        "rmse": 122507.45,
+        "r2": -0.9457
+      },
+      "test": {
+        "mae": 111529.15,
+        "rmse": 137610.04,
+        "r2": -1.0116
+      }
+    },
+    "xgboost": {
+      "validation": {
+        "mae": 80534.8,
+        "rmse": 103280.71,
+        "r2": -0.3829
+      },
+      "test": {
+        "mae": 97225.54,
+        "rmse": 130436.24,
+        "r2": -0.8073
+      }
+    }
+  },
+  "selected_model": "xgboost",
+  "forecast_example": [
+    {
+      "forecast_date": "2026-08-16",
+      "predicted_inflow": null,
+      "predicted_outflow": null,
+      "predicted_net_cash_flow": -121410.97
+    },
+    {
+      "forecast_date": "2026-08-17",
+      "predicted_inflow": null,
+      "predicted_outflow": null,
+      "predicted_net_cash_flow": -117697.93
+    },
+    {
+      "forecast_date": "2026-08-18",
+      "predicted_inflow": null,
+      "predicted_outflow": null,
+      "predicted_net_cash_flow": -108362.62
+    },
+    {
+      "forecast_date": "2026-08-19",
+      "predicted_inflow": null,
+      "predicted_outflow": null,
+      "predicted_net_cash_flow": -112789.95
+    },
+    {
+      "forecast_date": "2026-08-20",
+      "predicted_inflow": null,
+      "predicted_outflow": null,
+      "predicted_net_cash_flow": -159003.0
+    },
+    {
+      "forecast_date": "2026-08-21",
+      "predicted_inflow": null,
+      "predicted_outflow": null,
+      "predicted_net_cash_flow": -120914.8
+    },
+    {
+      "forecast_date": "2026-08-22",
+      "predicted_inflow": null,
+      "predicted_outflow": null,
+      "predicted_net_cash_flow": -130705.38
+    }
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "data_quality": {
+    "daily_rows": 715,
+    "feature_ready_rows": 685,
+    "date_range": {
+      "start": "2024-08-30",
+      "end": "2026-08-14"
+    },
+    "missing_dates": 0,
+    "null_values_in_daily_data": 0,
+    "null_values_in_feature_data": 0,
+    "future_dates_in_dataset": 0,
+    "source_diagnostics": {
+      "future_dated_sales_rows": 0,
+      "non_completed_sales_rows": 0,
+      "duplicate_business_sale_numbers": 0
+    },
+    "leakage_control": "Sales lags and rolling values use data through t-1 only; target is day t daily_sales_amount."
+  },
+  "split_rows": {
+    "train": 411,
+    "validation": 137,
+    "test": 137
+  },
+  "evaluations": {
+    "seasonal_naive": {
+      "validation": {
+        "mae": 19345.7,
+        "rmse": 25174.93,
+        "r2": -0.2801,
+        "mape": 43.03,
+        "mape_evaluated_rows": 137,
+        "zero_actual_rows_excluded_from_mape": 0
+      },
+      "test": {
+        "mae": 22574.18,
+        "rmse": 30129.08,
+        "r2": -0.5496,
+        "mape": 39.8,
+        "mape_evaluated_rows": 137,
+        "zero_actual_rows_excluded_from_mape": 0
+      }
+    },
+    "xgboost": {
+      "validation": {
+        "mae": 20690.29,
+        "rmse": 25124.13,
+        "r2": -0.275,
+        "mape": 51.13,
+        "mape_evaluated_rows": 137,
+        "zero_actual_rows_excluded_from_mape": 0
+      },
+      "test": {
+        "mae": 22326.86,
+        "rmse": 29339.83,
+        "r2": -0.4695,
+        "mape": 37.54,
+        "mape_evaluated_rows": 137,
+        "zero_actual_rows_excluded_from_mape": 0
+      }
+    }
+  },
+  "selected_model": "xgboost",
+  "forecast_example": [
+    {
+      "forecast_date": "2026-08-15",
+      "predicted_sales": 37534.84,
+      "predicted_orders": null
+    },
+    {
+      "forecast_date": "2026-08-16",
+      "predicted_sales": 38189.95,
+      "predicted_orders": null
+    },
+    {
+      "forecast_date": "2026-08-17",
+      "predicted_sales": 35791.22,
+      "predicted_orders": null
+    },
+    {
+      "forecast_date": "2026-08-18",
+      "predicted_sales": 44097.13,
+      "predicted_orders": null
+    },
+    {
+      "forecast_date": "2026-08-19",
+      "predicted_sales": 35864.27,
+      "predicted_orders": null
+    },
+    {
+      "forecast_date": "2026-08-20",
+      "predicted_sales": 36271.78,
+      "predicted_orders": null
+    },
+    {
+      "forecast_date": "2026-08-21",
+      "predicted_sales": 34442.87,
+      "predicted_orders": null
+    }
+  ]
+}
