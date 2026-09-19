@@ -1,12 +1,19 @@
 {
-  "daily_rows": 731,
-  "feature_ready_rows": 701,
+  "daily_rows": 764,
+  "feature_ready_rows": 734,
   "date_range": {
     "start": "2024-08-15",
-    "end": "2026-08-15"
+    "end": "2026-09-17"
   },
   "missing_dates": 0,
+  "duplicate_dates": 0,
   "null_values_in_daily_data": 0,
-  "null_values_in_feature_data": 0,
-  "leakage_control": "Rolling and lag features use values through t-1 only; target is day t net cash flow."
+  "null_values_in_feature_data": 16,
+  "leakage_control": "All rolling and lag features are based only on historical values through t-1.",
+  "final_training_rows": 727,
+  "final_training_date_range": [
+    "2024-09-21",
+    "2026-09-17"
+  ],
+  "component_lag_rows_removed": 7
 }

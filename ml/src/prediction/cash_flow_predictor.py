@@ -1,19 +1,25 @@
 """
 Reusable predictor for CashGuard-AI daily cash-flow forecasting.
 
-This module:
-    1. Loads the existing persisted Cash Flow ML model.
-    2. Loads the model metadata.
-    3. Loads real historical daily cash-flow data.
-    4. Builds future features using the existing feature builder.
-    5. Recursively forecasts 7/30/60/90 calendar days.
-    6. Returns structured forecast records.
+Models:
+    1. Net cash flow
+    2. Cash inflow
+    3. Cash outflow
+
+The predictor:
+    - Loads persisted trained models.
+    - Loads model metadata.
+    - Loads real historical daily cash-flow data.
+    - Builds future features using the existing feature builder.
+    - Adds component lag features required by inflow/outflow models.
+    - Recursively forecasts 7/30/60/90 calendar days.
+    - Returns structured forecast records.
 
 IMPORTANT:
-    - Do NOT retrain the model here.
-    - Do NOT modify the trained model.
-    - Do NOT fabricate predicted inflow/outflow values.
-    - The persisted model currently predicts net cash flow.
+    - This module NEVER retrains models.
+    - This module NEVER fabricates component values.
+    - Component predictions are returned only when their
+      persisted models are available.
 """
 
 from __future__ import annotations
@@ -45,19 +51,76 @@ SUPPORTED_HORIZONS = (
 
 
 # ============================================================
+# MODEL FILE NAMES
+# ============================================================
+
+NET_MODEL_FILENAME = (
+    "cash_flow_forecast_model.joblib"
+)
+
+INFLOW_MODEL_FILENAME = (
+    "cash_flow_inflow_model.joblib"
+)
+
+OUTFLOW_MODEL_FILENAME = (
+    "cash_flow_outflow_model.joblib"
+)
+
+NET_METADATA_FILENAME = (
+    "cash_flow_forecast_metadata.json"
+)
+
+COMPONENT_METADATA_FILENAME = (
+    "cash_flow_component_forecast_metadata.json"
+)
+
+
+# ============================================================
+# TARGETS
+# ============================================================
+
+INFLOW_TARGET = "cash_inflow"
+OUTFLOW_TARGET = "cash_outflow"
+
+NET_TARGET = "net_cash_flow"
+
+
+# ============================================================
+# FALLBACK COMPONENT FEATURES
+# ============================================================
+
+# These exactly match the features used by the new
+# component-model training workflow.
+#
+# Metadata remains the primary source of truth. These are
+# only used as a safe fallback when component metadata
+# is unavailable.
+
+DEFAULT_COMPONENT_EXTRA_FEATURES = [
+    "cash_inflow_lag_1",
+    "cash_inflow_lag_7",
+    "cash_outflow_lag_1",
+    "cash_outflow_lag_7",
+]
+
+
+# ============================================================
 # PREDICTOR
 # ============================================================
 
-
 class CashFlowPredictor:
     """
-    Load the existing CashGuard Cash Flow forecasting model
-    and recursively generate future daily net-cash-flow forecasts.
+    Load CashGuard cash-flow forecasting models and
+    recursively generate future daily forecasts.
 
-    The persisted model predicts TARGET (net cash flow).
-    Therefore predicted_inflow and predicted_outflow are
-    intentionally left as None unless a separate model exists
-    for those components.
+    The net model predicts:
+        net_cash_flow
+
+    The component models predict:
+        cash_inflow
+        cash_outflow
+
+    All three models are independently persisted.
     """
 
     def __init__(
@@ -65,29 +128,32 @@ class CashFlowPredictor:
         model_path: str | Path,
         metadata_path: str | Path | None = None,
     ) -> None:
-        # --------------------------------------------------------
-        # MODEL PATH
-        # --------------------------------------------------------
 
-        self.model_path = Path(
-            model_path
-        ).expanduser()
+        # ========================================================
+        # NET MODEL PATH
+        # ========================================================
+
+        self.model_path = (
+            Path(model_path)
+            .expanduser()
+            .resolve()
+        )
 
         if not self.model_path.exists():
             raise FileNotFoundError(
-                f"Cash-flow model file not found: "
+                "Cash-flow net model file not found: "
                 f"{self.model_path}"
             )
 
         if not self.model_path.is_file():
             raise ValueError(
-                f"Cash-flow model path is not a file: "
+                "Cash-flow net model path is not a file: "
                 f"{self.model_path}"
             )
 
-        # --------------------------------------------------------
-        # LOAD TRAINED MODEL
-        # --------------------------------------------------------
+        # ========================================================
+        # LOAD NET MODEL
+        # ========================================================
 
         try:
             self.model = joblib.load(
@@ -96,7 +162,7 @@ class CashFlowPredictor:
         except Exception as exc:
             raise RuntimeError(
                 "Unable to load the persisted "
-                f"Cash Flow ML model: {self.model_path}"
+                f"Cash Flow net model: {self.model_path}"
             ) from exc
 
         if not hasattr(
@@ -104,24 +170,26 @@ class CashFlowPredictor:
             "predict",
         ):
             raise TypeError(
-                "Loaded Cash Flow model does not "
+                "Loaded Cash Flow net model does not "
                 "provide a predict() method."
             )
 
-        # --------------------------------------------------------
-        # METADATA PATH
-        # --------------------------------------------------------
+        # ========================================================
+        # NET METADATA PATH
+        # ========================================================
 
         if metadata_path is None:
             resolved_metadata_path = (
                 self.model_path.with_name(
-                    "cash_flow_forecast_metadata.json"
+                    NET_METADATA_FILENAME
                 )
             )
         else:
-            resolved_metadata_path = Path(
-                metadata_path
-            ).expanduser()
+            resolved_metadata_path = (
+                Path(metadata_path)
+                .expanduser()
+                .resolve()
+            )
 
         self.metadata_path = (
             resolved_metadata_path
@@ -129,7 +197,7 @@ class CashFlowPredictor:
 
         if not self.metadata_path.exists():
             raise FileNotFoundError(
-                "Cash-flow model metadata file not found: "
+                "Cash-flow metadata file not found: "
                 f"{self.metadata_path}"
             )
 
@@ -139,42 +207,27 @@ class CashFlowPredictor:
                 f"{self.metadata_path}"
             )
 
-        # --------------------------------------------------------
-        # LOAD METADATA
-        # --------------------------------------------------------
+        # ========================================================
+        # LOAD NET METADATA
+        # ========================================================
 
-        try:
-            metadata_text = (
-                self.metadata_path.read_text(
-                    encoding="utf-8"
-                )
-            )
-
-            self.metadata = json.loads(
-                metadata_text
-            )
-        except json.JSONDecodeError as exc:
-            raise ValueError(
-                "Cash-flow forecast metadata contains "
-                "invalid JSON."
-            ) from exc
-        except OSError as exc:
-            raise RuntimeError(
-                "Unable to read cash-flow forecast metadata."
-            ) from exc
+        self.metadata = self._load_json(
+            self.metadata_path,
+            "cash-flow forecast metadata",
+        )
 
         if not isinstance(
             self.metadata,
             dict,
         ):
             raise ValueError(
-                "Cash-flow forecast metadata must "
-                "contain a JSON object."
+                "Cash-flow forecast metadata must contain "
+                "a JSON object."
             )
 
-        # --------------------------------------------------------
-        # FEATURE COLUMNS
-        # --------------------------------------------------------
+        # ========================================================
+        # NET FEATURE COLUMNS
+        # ========================================================
 
         feature_columns = (
             self.metadata.get(
@@ -187,8 +240,8 @@ class CashFlowPredictor:
             list,
         ):
             raise ValueError(
-                "Cash-flow forecast metadata must "
-                "contain a 'feature_columns' list."
+                "Cash-flow forecast metadata must contain "
+                "a 'feature_columns' list."
             )
 
         if not feature_columns:
@@ -197,63 +250,355 @@ class CashFlowPredictor:
                 "an empty feature_columns list."
             )
 
-        cleaned_features: list[str] = []
+        self.features = self._clean_feature_list(
+            feature_columns,
+            "net cash-flow",
+        )
 
-        for feature in feature_columns:
-            feature_name = str(
+        # ========================================================
+        # COMPONENT MODEL PATHS
+        # ========================================================
+
+        self.inflow_model_path = (
+            self.model_path.with_name(
+                INFLOW_MODEL_FILENAME
+            )
+        )
+
+        self.outflow_model_path = (
+            self.model_path.with_name(
+                OUTFLOW_MODEL_FILENAME
+            )
+        )
+
+        self.component_metadata_path = (
+            self.model_path.with_name(
+                COMPONENT_METADATA_FILENAME
+            )
+        )
+
+        # ========================================================
+        # COMPONENT MODELS
+        # ========================================================
+
+        self.inflow_model = (
+            self._load_optional_model(
+                self.inflow_model_path,
+                "cash inflow",
+            )
+        )
+
+        self.outflow_model = (
+            self._load_optional_model(
+                self.outflow_model_path,
+                "cash outflow",
+            )
+        )
+
+        # ========================================================
+        # COMPONENT METADATA
+        # ========================================================
+
+        self.component_metadata: dict[
+            str,
+            Any,
+        ] = {}
+
+        if (
+            self.component_metadata_path.exists()
+            and self.component_metadata_path.is_file()
+        ):
+            self.component_metadata = self._load_json(
+                self.component_metadata_path,
+                "cash-flow component metadata",
+            )
+
+            if not isinstance(
+                self.component_metadata,
+                dict,
+            ):
+                raise ValueError(
+                    "Cash-flow component metadata must "
+                    "contain a JSON object."
+                )
+
+        # ========================================================
+        # COMPONENT FEATURE COLUMNS
+        # ========================================================
+
+        self.inflow_features = (
+            self._get_component_features(
+                INFLOW_TARGET
+            )
+        )
+
+        self.outflow_features = (
+            self._get_component_features(
+                OUTFLOW_TARGET
+            )
+        )
+
+        # Both component models should use the same
+        # feature schema. Validate when both are present.
+        if (
+            self.inflow_model is not None
+            and self.outflow_model is not None
+        ):
+            if (
+                self.inflow_features
+                != self.outflow_features
+            ):
+                raise ValueError(
+                    "Cash inflow and cash outflow models "
+                    "must use the same feature column order."
+                )
+
+    # ============================================================
+    # JSON HELPERS
+    # ============================================================
+
+    @staticmethod
+    def _load_json(
+        path: Path,
+        description: str,
+    ) -> dict[str, Any]:
+        """Load and validate a JSON object."""
+
+        try:
+            text = path.read_text(
+                encoding="utf-8"
+            )
+
+            data = json.loads(
+                text
+            )
+
+        except json.JSONDecodeError as exc:
+            raise ValueError(
+                f"{description} contains invalid JSON: "
+                f"{path}"
+            ) from exc
+
+        except OSError as exc:
+            raise RuntimeError(
+                f"Unable to read {description}: "
+                f"{path}"
+            ) from exc
+
+        if not isinstance(
+            data,
+            dict,
+        ):
+            raise ValueError(
+                f"{description} must contain a JSON object."
+            )
+
+        return data
+
+    @staticmethod
+    def _clean_feature_list(
+        features: list[Any],
+        label: str,
+    ) -> list[str]:
+        """Normalize and validate feature names."""
+
+        cleaned: list[str] = []
+
+        for feature in features:
+
+            name = str(
                 feature
             ).strip()
 
-            if not feature_name:
+            if not name:
                 raise ValueError(
-                    "Cash-flow metadata contains "
-                    "an empty feature column name."
+                    f"{label} model metadata contains "
+                    "an empty feature name."
                 )
 
-            cleaned_features.append(
-                feature_name
+            cleaned.append(
+                name
             )
 
-        self.features = cleaned_features
+        return cleaned
 
     # ============================================================
-    # HELPERS
+    # MODEL HELPERS
+    # ============================================================
+
+    @staticmethod
+    def _load_optional_model(
+        path: Path,
+        label: str,
+    ) -> Any | None:
+        """
+        Load an optional persisted component model.
+
+        Missing component models are allowed for backward
+        compatibility, but invalid existing files fail clearly.
+        """
+
+        if not path.exists():
+            return None
+
+        if not path.is_file():
+            raise ValueError(
+                f"Cash-flow {label} model path is not a file: "
+                f"{path}"
+            )
+
+        try:
+            model = joblib.load(
+                path
+            )
+        except Exception as exc:
+            raise RuntimeError(
+                f"Unable to load the persisted "
+                f"cash-flow {label} model: {path}"
+            ) from exc
+
+        if not hasattr(
+            model,
+            "predict",
+        ):
+            raise TypeError(
+                f"Loaded cash-flow {label} model does not "
+                "provide a predict() method."
+            )
+
+        return model
+
+    def _get_component_features(
+        self,
+        target_name: str,
+    ) -> list[str]:
+        """
+        Resolve component feature columns.
+
+        Primary source:
+            cash_flow_component_forecast_metadata.json
+
+        Fallback:
+            net model features + component lag features
+        """
+
+        target_metadata = (
+            self.component_metadata.get(
+                target_name
+            )
+        )
+
+        # The training metadata may alternatively store
+        # component information under the plain model names.
+        if not isinstance(
+            target_metadata,
+            dict,
+        ):
+            if target_name == INFLOW_TARGET:
+                target_metadata = (
+                    self.component_metadata.get(
+                        "cash_inflow"
+                    )
+                )
+
+            elif target_name == OUTFLOW_TARGET:
+                target_metadata = (
+                    self.component_metadata.get(
+                        "cash_outflow"
+                    )
+                )
+
+        if isinstance(
+            target_metadata,
+            dict,
+        ):
+
+            feature_columns = (
+                target_metadata.get(
+                    "feature_columns"
+                )
+            )
+
+            if isinstance(
+                feature_columns,
+                list,
+            ) and feature_columns:
+
+                return self._clean_feature_list(
+                    feature_columns,
+                    target_name,
+                )
+
+        fallback = (
+            list(self.features)
+            + list(
+                DEFAULT_COMPONENT_EXTRA_FEATURES
+            )
+        )
+
+        return fallback
+
+    # ============================================================
+    # PROPERTIES
     # ============================================================
 
     @property
     def target(self) -> str:
-        """
-        Return the model target column used by
-        the existing Cash Flow dataset.
-        """
-        return TARGET
+        """Return the net model target."""
+
+        return self.metadata.get(
+            "target_column",
+            NET_TARGET,
+        )
 
     @property
     def model_name(self) -> str:
-        """
-        Return the persisted model filename.
-        """
+        """Return the net persisted model filename."""
+
         return self.model_path.name
 
     @property
     def model_metadata(self) -> dict[str, Any]:
-        """
-        Return loaded metadata.
+        """Return a safe metadata copy."""
 
-        A shallow copy prevents callers from accidentally
-        modifying the internal metadata dictionary.
-        """
-        return dict(
+        metadata = dict(
             self.metadata
         )
+
+        metadata[
+            "component_models_loaded"
+        ] = {
+            "cash_inflow": (
+                self.inflow_model is not None
+            ),
+            "cash_outflow": (
+                self.outflow_model is not None
+            ),
+        }
+
+        metadata[
+            "component_feature_counts"
+        ] = {
+            "cash_inflow": len(
+                self.inflow_features
+            ),
+            "cash_outflow": len(
+                self.outflow_features
+            ),
+        }
+
+        return metadata
+
+    # ============================================================
+    # VALIDATION
+    # ============================================================
 
     def _validate_horizon(
         self,
         horizon_days: int,
     ) -> int:
-        """
-        Validate and normalize the forecast horizon.
-        """
+        """Validate forecast horizon."""
+
         if isinstance(
             horizon_days,
             bool,
@@ -263,7 +608,7 @@ class CashFlowPredictor:
             )
 
         try:
-            normalized_horizon = int(
+            normalized = int(
                 horizon_days
             )
         except (
@@ -274,10 +619,7 @@ class CashFlowPredictor:
                 "horizon_days must be an integer."
             ) from exc
 
-        if (
-            normalized_horizon
-            not in SUPPORTED_HORIZONS
-        ):
+        if normalized not in SUPPORTED_HORIZONS:
             supported = ", ".join(
                 str(value)
                 for value in SUPPORTED_HORIZONS
@@ -288,40 +630,51 @@ class CashFlowPredictor:
                 f"{supported}."
             )
 
-        return normalized_horizon
+        return normalized
 
     def _validate_history(
         self,
         history: pd.DataFrame,
     ) -> pd.DataFrame:
-        """
-        Validate the historical dataset returned by the
-        existing Cash Flow feature/data layer.
-        """
+        """Validate real historical daily cash-flow data."""
+
         if not isinstance(
             history,
             pd.DataFrame,
         ):
             raise TypeError(
-                "load_daily_cash_flow() must return a pandas DataFrame."
+                "load_daily_cash_flow() must return "
+                "a pandas DataFrame."
             )
 
         if history.empty:
             raise ValueError(
                 "Cash-flow history is empty. "
-                "At least one historical daily record is required "
-                "for forecasting."
+                "Historical daily records are required."
             )
 
-        if "date" not in history.columns:
+        required_columns = {
+            "date",
+            INFLOW_TARGET,
+            OUTFLOW_TARGET,
+            NET_TARGET,
+        }
+
+        missing = sorted(
+            required_columns
+            - set(history.columns)
+        )
+
+        if missing:
             raise ValueError(
-                "Cash-flow history must contain a 'date' column."
+                "Cash-flow history is missing required columns: "
+                + ", ".join(missing)
             )
 
         normalized = history.copy()
 
         # --------------------------------------------------------
-        # DATE NORMALIZATION
+        # DATE
         # --------------------------------------------------------
 
         normalized["date"] = pd.to_datetime(
@@ -338,6 +691,53 @@ class CashFlowPredictor:
                 "Cash-flow history contains no valid dates."
             )
 
+        if getattr(
+            normalized["date"].dt,
+            "tz",
+            None,
+        ) is not None:
+            normalized["date"] = (
+                normalized["date"]
+                .dt.tz_localize(None)
+            )
+
+        normalized["date"] = (
+            normalized["date"]
+            .dt.normalize()
+        )
+
+        # --------------------------------------------------------
+        # NUMERIC CASH-FLOW COLUMNS
+        # --------------------------------------------------------
+
+        for column in [
+            INFLOW_TARGET,
+            OUTFLOW_TARGET,
+            NET_TARGET,
+        ]:
+
+            normalized[column] = pd.to_numeric(
+                normalized[column],
+                errors="coerce",
+            )
+
+        if normalized[
+            [
+                INFLOW_TARGET,
+                OUTFLOW_TARGET,
+                NET_TARGET,
+            ]
+        ].isna().any().any():
+
+            raise ValueError(
+                "Cash-flow history contains null or "
+                "non-numeric cash-flow values."
+            )
+
+        # --------------------------------------------------------
+        # SORT + DUPLICATES
+        # --------------------------------------------------------
+
         normalized = (
             normalized
             .sort_values("date")
@@ -345,28 +745,52 @@ class CashFlowPredictor:
                 subset=["date"],
                 keep="last",
             )
-            .reset_index(
-                drop=True
-            )
+            .reset_index(drop=True)
         )
+
+        # --------------------------------------------------------
+        # BUSINESS ID CONSISTENCY
+        # --------------------------------------------------------
+
+        if "business_id" in normalized.columns:
+
+            business_ids = (
+                normalized[
+                    "business_id"
+                ]
+                .dropna()
+                .astype(str)
+                .unique()
+            )
+
+            if len(business_ids) > 1:
+                raise ValueError(
+                    "Cash-flow history contains multiple business IDs."
+                )
 
         return normalized
 
+    # ============================================================
+    # MODEL INPUT
+    # ============================================================
+
+    @staticmethod
     def _build_model_input(
-        self,
         features: dict[str, Any],
+        feature_columns: list[str],
     ) -> pd.DataFrame:
         """
-        Build a one-row DataFrame in exactly the feature order
-        recorded in the persisted metadata.
+        Build one-row DataFrame using exact persisted
+        training feature order.
         """
+
         row = pd.DataFrame(
             [features]
         )
 
         missing = [
             feature
-            for feature in self.features
+            for feature in feature_columns
             if feature not in row.columns
         ]
 
@@ -377,76 +801,169 @@ class CashFlowPredictor:
                 + ", ".join(missing)
             )
 
-        # Keep EXACTLY the order used during training.
         return row.loc[
             :,
-            self.features,
+            feature_columns,
         ]
 
-    def _predict_one(
+    def _predict_model(
         self,
-        feature_row: dict[str, Any],
+        model: Any,
+        features: dict[str, Any],
+        feature_columns: list[str],
+        label: str,
     ) -> float:
-        """
-        Run the existing persisted model for one future day.
-        """
+        """Run one persisted model and validate output."""
+
         model_input = (
             self._build_model_input(
-                feature_row
+                features,
+                feature_columns,
             )
         )
 
         try:
-            prediction = (
-                self.model.predict(
-                    model_input
-                )
+            prediction = model.predict(
+                model_input
             )
         except Exception as exc:
             raise RuntimeError(
-                "Cash Flow ML model prediction failed."
+                f"Cash Flow {label} model prediction failed."
             ) from exc
-
-        # --------------------------------------------------------
-        # VALIDATE MODEL OUTPUT
-        # --------------------------------------------------------
 
         if prediction is None:
             raise RuntimeError(
-                "Cash Flow ML model returned no prediction."
+                f"Cash Flow {label} model returned no prediction."
             )
 
         if len(prediction) != 1:
             raise RuntimeError(
-                "Cash Flow ML model must return exactly "
+                f"Cash Flow {label} model must return exactly "
                 "one prediction for one future day."
             )
 
-        value = prediction[0]
-
         try:
-            numeric_prediction = float(
-                value
+            value = float(
+                prediction[0]
             )
         except (
             TypeError,
             ValueError,
         ) as exc:
             raise RuntimeError(
-                "Cash Flow ML model returned a non-numeric prediction."
+                f"Cash Flow {label} model returned "
+                "a non-numeric prediction."
             ) from exc
 
-        if pd.isna(
-            numeric_prediction
-        ):
+        if pd.isna(value):
             raise RuntimeError(
-                "Cash Flow ML model returned NaN."
+                f"Cash Flow {label} model returned NaN."
             )
 
         return round(
-            numeric_prediction,
+            value,
             2,
         )
+
+    # ============================================================
+    # COMPONENT FEATURE BUILDER
+    # ============================================================
+
+    @staticmethod
+    def _historical_value(
+        history: pd.DataFrame,
+        column: str,
+        date_value: pd.Timestamp,
+    ) -> float:
+        """Get an exact historical value for a date."""
+
+        matches = history.loc[
+            history["date"] == date_value,
+            column,
+        ]
+
+        if matches.empty:
+            raise ValueError(
+                f"Historical value missing for "
+                f"{column} on {date_value.date()}."
+            )
+
+        value = matches.iloc[-1]
+
+        numeric = float(
+            value
+        )
+
+        if pd.isna(numeric):
+            raise ValueError(
+                f"Historical {column} is NaN on "
+                f"{date_value.date()}."
+            )
+
+        return numeric
+
+    def _add_component_lags(
+        self,
+        features: dict[str, Any],
+        history: pd.DataFrame,
+        forecast_date: pd.Timestamp,
+    ) -> dict[str, Any]:
+        """
+        Add component lag features expected by the new
+        inflow/outflow models.
+
+        For forecast date t:
+            lag_1 = value at t-1
+            lag_7 = value at t-7
+        """
+
+        enriched = dict(
+            features
+        )
+
+        previous_day = (
+            forecast_date
+            - pd.Timedelta(days=1)
+        )
+
+        seven_days_before = (
+            forecast_date
+            - pd.Timedelta(days=7)
+        )
+
+        enriched[
+            "cash_inflow_lag_1"
+        ] = self._historical_value(
+            history,
+            INFLOW_TARGET,
+            previous_day,
+        )
+
+        enriched[
+            "cash_inflow_lag_7"
+        ] = self._historical_value(
+            history,
+            INFLOW_TARGET,
+            seven_days_before,
+        )
+
+        enriched[
+            "cash_outflow_lag_1"
+        ] = self._historical_value(
+            history,
+            OUTFLOW_TARGET,
+            previous_day,
+        )
+
+        enriched[
+            "cash_outflow_lag_7"
+        ] = self._historical_value(
+            history,
+            OUTFLOW_TARGET,
+            seven_days_before,
+        )
+
+        return enriched
 
     # ============================================================
     # MAIN FORECAST
@@ -458,32 +975,13 @@ class CashFlowPredictor:
         business_id: str | None = None,
     ) -> list[dict[str, Any]]:
         """
-        Generate a recursive daily forecast.
+        Generate recursive daily forecasts.
 
-        Parameters
-        ----------
-        horizon_days:
-            One of 7, 30, 60, or 90.
-
-        business_id:
-            Optional business ID passed directly to the
-            existing load_daily_cash_flow() implementation.
-
-        Returns
-        -------
-        list[dict[str, Any]]
-            One result per forecast day.
-
-        Example
-        -------
-        [
-            {
-                "forecast_date": "2026-08-31",
-                "predicted_inflow": None,
-                "predicted_outflow": None,
-                "predicted_net_cash_flow": 12500.50
-            }
-        ]
+        Returns:
+            forecast_date
+            predicted_inflow
+            predicted_outflow
+            predicted_net_cash_flow
         """
 
         validated_horizon = (
@@ -492,54 +990,51 @@ class CashFlowPredictor:
             )
         )
 
-        # --------------------------------------------------------
+        # ========================================================
         # LOAD REAL HISTORY
-        # --------------------------------------------------------
+        # ========================================================
 
         try:
-            history = (
-                load_daily_cash_flow(
-                    business_id
-                )
+            history = load_daily_cash_flow(
+                business_id
             )
         except Exception as exc:
             raise RuntimeError(
-                "Unable to load real daily cash-flow history "
-                "for forecasting."
+                "Unable to load real daily cash-flow "
+                "history for forecasting."
             ) from exc
 
-        history = (
-            self._validate_history(
-                history
-            )
+        history = self._validate_history(
+            history
         )
 
-        # --------------------------------------------------------
+        # ========================================================
         # START DATE
-        # --------------------------------------------------------
+        # ========================================================
 
         last_history_date = (
-            history["date"].iloc[-1]
+            history[
+                "date"
+            ].iloc[-1]
         )
 
         next_date = (
             last_history_date
-            + pd.Timedelta(
-                days=1
-            )
+            + pd.Timedelta(days=1)
         )
 
         results: list[
             dict[str, Any]
         ] = []
 
-        # --------------------------------------------------------
+        # ========================================================
         # RECURSIVE FORECAST
-        # --------------------------------------------------------
+        # ========================================================
 
         for offset in range(
             validated_horizon
         ):
+
             forecast_date = (
                 next_date
                 + pd.Timedelta(
@@ -548,11 +1043,11 @@ class CashFlowPredictor:
             )
 
             # ----------------------------------------------------
-            # BUILD FUTURE FEATURES
+            # BUILD EXISTING BASE FEATURES
             # ----------------------------------------------------
 
             try:
-                features = (
+                base_features = (
                     build_future_feature_row(
                         history,
                         forecast_date,
@@ -561,12 +1056,11 @@ class CashFlowPredictor:
             except Exception as exc:
                 raise RuntimeError(
                     "Unable to build future Cash Flow "
-                    "features for "
-                    f"{forecast_date.date()}."
+                    f"features for {forecast_date.date()}."
                 ) from exc
 
             if not isinstance(
-                features,
+                base_features,
                 dict,
             ):
                 raise TypeError(
@@ -575,62 +1069,129 @@ class CashFlowPredictor:
                 )
 
             # ----------------------------------------------------
-            # MODEL PREDICTION
+            # NET PREDICTION
             # ----------------------------------------------------
 
-            prediction = (
-                self._predict_one(
-                    features
+            predicted_net = (
+                self._predict_model(
+                    model=self.model,
+                    features=base_features,
+                    feature_columns=self.features,
+                    label="net cash-flow",
                 )
             )
 
             # ----------------------------------------------------
-            # RESULT
-            #
-            # The existing model predicts net cash flow only.
-            # Therefore inflow/outflow remain None intentionally.
+            # COMPONENT PREDICTIONS
             # ----------------------------------------------------
 
-            result = {
-                "forecast_date": (
-                    forecast_date
-                    .date()
-                    .isoformat()
-                ),
-                "predicted_inflow": None,
-                "predicted_outflow": None,
-                "predicted_net_cash_flow": prediction,
-            }
+            predicted_inflow: float | None = None
+            predicted_outflow: float | None = None
+
+            if (
+                self.inflow_model is not None
+                and self.outflow_model is not None
+            ):
+
+                component_features = (
+                    self._add_component_lags(
+                        base_features,
+                        history,
+                        forecast_date,
+                    )
+                )
+
+                predicted_inflow = (
+                    self._predict_model(
+                        model=self.inflow_model,
+                        features=component_features,
+                        feature_columns=self.inflow_features,
+                        label="cash-inflow",
+                    )
+                )
+
+                predicted_outflow = (
+                    self._predict_model(
+                        model=self.outflow_model,
+                        features=component_features,
+                        feature_columns=self.outflow_features,
+                        label="cash-outflow",
+                    )
+                )
+
+            # ----------------------------------------------------
+            # RESULT
+            # ----------------------------------------------------
 
             results.append(
-                result
+                {
+                    "forecast_date": (
+                        forecast_date
+                        .date()
+                        .isoformat()
+                    ),
+                    "predicted_inflow": (
+                        predicted_inflow
+                    ),
+                    "predicted_outflow": (
+                        predicted_outflow
+                    ),
+                    "predicted_net_cash_flow": (
+                        predicted_net
+                    ),
+                }
             )
 
             # ----------------------------------------------------
             # RECURSIVE HISTORY UPDATE
-            #
-            # Future prediction becomes the target for the next
-            # forecast step, preserving the existing recursive
-            # forecasting design.
             # ----------------------------------------------------
 
-            future_row = pd.DataFrame(
-                [
-                    {
-                        "date": forecast_date,
-                        "cash_inflow": None,
-                        "cash_outflow": None,
-                        TARGET: prediction,
-                    }
-                ]
-            )
+            # Component predictions are inserted into future
+            # history so the next forecast day can use them
+            # as lag/rolling inputs.
+
+            if predicted_inflow is None:
+                future_inflow = 0.0
+            else:
+                future_inflow = (
+                    predicted_inflow
+                )
+
+            if predicted_outflow is None:
+                future_outflow = 0.0
+            else:
+                future_outflow = (
+                    predicted_outflow
+                )
+
+            future_row: dict[str, Any] = {
+                "date": forecast_date,
+                INFLOW_TARGET: future_inflow,
+                OUTFLOW_TARGET: future_outflow,
+                NET_TARGET: predicted_net,
+            }
+
+            if "business_id" in history.columns:
+                future_row["business_id"] = (
+                    history[
+                        "business_id"
+                    ].iloc[0]
+                )
 
             history = pd.concat(
                 [
                     history,
-                    future_row,
+                    pd.DataFrame(
+                        [future_row]
+                    ),
                 ],
                 ignore_index=True,
+            )
+
+            history = (
+                history
+                .sort_values("date")
+                .reset_index(drop=True)
             )
 
         return results
@@ -644,6 +1205,7 @@ class CashFlowPredictor:
         business_id: str | None = None,
     ) -> list[dict[str, Any]]:
         """Forecast the next 7 days."""
+
         return self.forecast(
             horizon_days=7,
             business_id=business_id,
@@ -654,6 +1216,7 @@ class CashFlowPredictor:
         business_id: str | None = None,
     ) -> list[dict[str, Any]]:
         """Forecast the next 30 days."""
+
         return self.forecast(
             horizon_days=30,
             business_id=business_id,
@@ -664,6 +1227,7 @@ class CashFlowPredictor:
         business_id: str | None = None,
     ) -> list[dict[str, Any]]:
         """Forecast the next 60 days."""
+
         return self.forecast(
             horizon_days=60,
             business_id=business_id,
@@ -674,6 +1238,7 @@ class CashFlowPredictor:
         business_id: str | None = None,
     ) -> list[dict[str, Any]]:
         """Forecast the next 90 days."""
+
         return self.forecast(
             horizon_days=90,
             business_id=business_id,
@@ -688,12 +1253,8 @@ class CashFlowPredictor:
         horizon_days: int,
         business_id: str | None = None,
     ) -> dict[str, Any]:
-        """
-        Return a compact summary derived ONLY from the model's
-        predicted net cash-flow values.
+        """Return aggregate forecast summary."""
 
-        No fabricated inflow/outflow estimates are generated.
-        """
         forecast_rows = self.forecast(
             horizon_days=horizon_days,
             business_id=business_id,
@@ -703,6 +1264,8 @@ class CashFlowPredictor:
             return {
                 "horizon_days": horizon_days,
                 "forecast_days": 0,
+                "total_predicted_inflow": 0.0,
+                "total_predicted_outflow": 0.0,
                 "total_predicted_net_cash_flow": 0.0,
                 "average_daily_predicted_net_cash_flow": 0.0,
                 "minimum_predicted_net_cash_flow": 0.0,
@@ -710,7 +1273,7 @@ class CashFlowPredictor:
                 "forecast": [],
             }
 
-        values = [
+        net_values = [
             float(
                 row[
                     "predicted_net_cash_flow"
@@ -719,27 +1282,59 @@ class CashFlowPredictor:
             for row in forecast_rows
         ]
 
+        inflow_values = [
+            float(
+                row[
+                    "predicted_inflow"
+                ]
+            )
+            for row in forecast_rows
+            if row[
+                "predicted_inflow"
+            ] is not None
+        ]
+
+        outflow_values = [
+            float(
+                row[
+                    "predicted_outflow"
+                ]
+            )
+            for row in forecast_rows
+            if row[
+                "predicted_outflow"
+            ] is not None
+        ]
+
         total_net = sum(
-            values
+            net_values
         )
 
         average_net = (
-            total_net /
-            len(values)
+            total_net
+            / len(net_values)
         )
 
         minimum_net = min(
-            values
+            net_values
         )
 
         maximum_net = max(
-            values
+            net_values
         )
 
         return {
             "horizon_days": horizon_days,
             "forecast_days": len(
                 forecast_rows
+            ),
+            "total_predicted_inflow": round(
+                sum(inflow_values),
+                2,
+            ),
+            "total_predicted_outflow": round(
+                sum(outflow_values),
+                2,
             ),
             "total_predicted_net_cash_flow": round(
                 total_net,
@@ -765,35 +1360,34 @@ class CashFlowPredictor:
 # FACTORY
 # ============================================================
 
-
 def create_cash_flow_predictor(
     base_dir: str | Path | None = None,
 ) -> CashFlowPredictor:
     """
     Create a predictor using the project's standard model paths.
 
-    This keeps path resolution in one place while remaining
-    compatible with the existing model layout.
+    The factory remains compatible with the existing ML API.
     """
 
     if base_dir is None:
-        # cash_flow_predictor.py
-        # is:
+
+        # cash_flow_predictor.py:
         #
         # ml/
         #   src/
         #     prediction/
         #
-        # Therefore:
         # parents[0] = prediction
         # parents[1] = src
         # parents[2] = ml
         # parents[3] = project root
+
         project_root = (
             Path(__file__)
             .resolve()
             .parents[3]
         )
+
     else:
         project_root = (
             Path(base_dir)
@@ -805,14 +1399,14 @@ def create_cash_flow_predictor(
         project_root
         / "ml"
         / "models"
-        / "cash_flow_forecast_model.joblib"
+        / NET_MODEL_FILENAME
     )
 
     metadata_path = (
         project_root
         / "ml"
         / "models"
-        / "cash_flow_forecast_metadata.json"
+        / NET_METADATA_FILENAME
     )
 
     return CashFlowPredictor(
@@ -826,12 +1420,15 @@ def create_cash_flow_predictor(
 # ============================================================
 
 if __name__ == "__main__":
+
     predictor = (
         create_cash_flow_predictor()
     )
 
-    forecast = predictor.forecast(
-        horizon_days=7
+    forecast = (
+        predictor.forecast(
+            horizon_days=7
+        )
     )
 
     print(

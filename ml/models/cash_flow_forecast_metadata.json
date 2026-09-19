@@ -17,45 +17,108 @@
   ],
   "business_id": "9ae1ca9a-c01b-423f-8f5c-7af4a702a6f1",
   "training_date_range": [
-    "2024-09-14",
-    "2025-11-07"
+    "2024-09-21",
+    "2025-11-30"
   ],
   "validation_date_range": [
-    "2025-11-08",
-    "2026-03-27"
+    "2025-12-01",
+    "2026-04-24"
   ],
   "test_date_range": [
-    "2026-03-28",
-    "2026-08-15"
+    "2026-04-25",
+    "2026-09-17"
   ],
   "evaluation_metrics": {
     "seasonal_naive": {
       "validation": {
-        "mae": 92416.59,
-        "rmse": 122507.45,
-        "r2": -0.9457
+        "mae": 98491.24,
+        "rmse": 126651.39,
+        "r2": -1.1428
       },
       "test": {
-        "mae": 111529.15,
-        "rmse": 137610.04,
-        "r2": -1.0116
+        "mae": 110256.64,
+        "rmse": 137949.19,
+        "r2": -0.9989
       }
     },
     "xgboost": {
       "validation": {
-        "mae": 80534.8,
-        "rmse": 103280.71,
-        "r2": -0.3829
+        "mae": 85423.18,
+        "rmse": 113293.1,
+        "r2": -0.7146
       },
       "test": {
-        "mae": 97225.54,
-        "rmse": 130436.24,
-        "r2": -0.8073
+        "mae": 97675.67,
+        "rmse": 129167.8,
+        "r2": -0.7525
+      },
+      "selection": {
+        "name": "xgboost_depth_4",
+        "metrics": {
+          "mae": 85423.18,
+          "rmse": 113293.1,
+          "r2": -0.7146
+        },
+        "parameters": {
+          "n_estimators": 350,
+          "max_depth": 4,
+          "learning_rate": 0.03,
+          "subsample": 0.9,
+          "colsample_bytree": 0.9
+        }
       }
     }
   },
-  "trained_at_utc": "2026-08-15T13:22:13.071626+00:00",
-  "cash_balance_limitation": "No verified current cash balance is used or forecast. The engine forecasts daily net cash flow only.",
-  "shortage_detection_limitation": "The schema has no reliable minimum cash threshold, so cash-shortage detection is intentionally deferred.",
-  "component_forecast_limitation": "The model forecasts net cash flow only; predicted inflow and outflow are null."
+  "trained_at_utc": "2026-09-19T18:13:48.826196+00:00",
+  "component_models": {
+    "cash_inflow": {
+      "model_name": "xgboost_regressor",
+      "model_file": "cash_flow_inflow_model.joblib",
+      "target_column": "cash_inflow",
+      "feature_columns": [
+        "cash_inflow_rolling_7",
+        "cash_outflow_rolling_7",
+        "net_cash_flow_rolling_7",
+        "cash_inflow_rolling_30",
+        "cash_outflow_rolling_30",
+        "net_cash_flow_rolling_30",
+        "net_cash_flow_lag_1",
+        "net_cash_flow_lag_7",
+        "day_of_week",
+        "day_of_month",
+        "month",
+        "days_since_series_start",
+        "cash_inflow_lag_1",
+        "cash_inflow_lag_7",
+        "cash_outflow_lag_1",
+        "cash_outflow_lag_7"
+      ]
+    },
+    "cash_outflow": {
+      "model_name": "xgboost_regressor",
+      "model_file": "cash_flow_outflow_model.joblib",
+      "target_column": "cash_outflow",
+      "feature_columns": [
+        "cash_inflow_rolling_7",
+        "cash_outflow_rolling_7",
+        "net_cash_flow_rolling_7",
+        "cash_inflow_rolling_30",
+        "cash_outflow_rolling_30",
+        "net_cash_flow_rolling_30",
+        "net_cash_flow_lag_1",
+        "net_cash_flow_lag_7",
+        "day_of_week",
+        "day_of_month",
+        "month",
+        "days_since_series_start",
+        "cash_inflow_lag_1",
+        "cash_inflow_lag_7",
+        "cash_outflow_lag_1",
+        "cash_outflow_lag_7"
+      ]
+    }
+  },
+  "cash_balance_limitation": "No verified current cash balance is used or forecast. Models forecast daily cash-flow components and net cash flow.",
+  "shortage_detection_limitation": "Cash-shortage detection requires a verified minimum cash threshold.",
+  "component_forecast_limitation": "Dedicated inflow and outflow models are trained separately. The prediction service must load these models to expose component forecast values."
 }

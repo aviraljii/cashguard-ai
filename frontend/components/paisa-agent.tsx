@@ -1,7 +1,11 @@
 'use client'
 
 import type { FormEvent } from 'react'
-import { useEffect, useRef, useState } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 import { useSearchParams } from 'next/navigation'
 import {
   Bot,
@@ -10,6 +14,10 @@ import {
   Sparkles,
   RefreshCw,
 } from 'lucide-react'
+
+/* ============================================================
+   TYPES
+   ============================================================ */
 
 type PaisaReply = {
   success?: boolean
@@ -37,6 +45,10 @@ type Message = {
   needsConfirmation?: boolean
 }
 
+/* ============================================================
+   API CONFIG
+   ============================================================ */
+
 const API_BASE_URL = (
   process.env.NEXT_PUBLIC_API_URL ||
   'http://localhost:8000'
@@ -45,11 +57,28 @@ const API_BASE_URL = (
 const ENV_BUSINESS_ID =
   process.env.NEXT_PUBLIC_BUSINESS_ID?.trim() || ''
 
+/* ============================================================
+   AUTH STORAGE KEYS
+   ============================================================ */
+
 const TOKEN_KEYS = [
   'cashguard_access_token',
   'access_token',
   'accessToken',
   'token',
+  'auth_token',
+  'jwt_token',
+  'jwt',
+  'cashguard_token',
+]
+
+const AUTH_OBJECT_KEYS = [
+  'auth',
+  'session',
+  'authData',
+  'auth_data',
+  'currentUser',
+  'current_user',
 ]
 
 const BUSINESS_ID_KEYS = [
@@ -59,9 +88,17 @@ const BUSINESS_ID_KEYS = [
   'cashguard_businessId',
 ]
 
+/* ============================================================
+   LIMITS
+   ============================================================ */
+
 const MAX_MESSAGE_LENGTH = 2000
 const MAX_CONTEXT_MESSAGES = 6
 const MAX_CONTEXT_MESSAGE_LENGTH = 1000
+
+/* ============================================================
+   SUGGESTIONS
+   ============================================================ */
 
 const SUGGESTED_QUESTIONS = [
   'How is my cash position today?',
@@ -69,14 +106,159 @@ const SUGGESTED_QUESTIONS = [
   'Agale 7 din ka cash flow batao',
 ]
 
+/* ============================================================
+   INITIAL MESSAGE
+   ============================================================ */
+
 const INITIAL_MESSAGE: Message = {
   role: 'assistant',
   text:
     'Namaste — I’m Paisa. Ask me about your verified cash position, receivables, payments, risks, forecast, or anything about using CashGuard.',
 }
 
-function storedValue(keys: string[]): string {
-  if (typeof window === 'undefined') {
+/* ============================================================
+   TOKEN NORMALIZATION
+   ============================================================ */
+
+function cleanToken(
+  value: unknown,
+): string | null {
+  if (
+    typeof value !==
+    'string'
+  ) {
+    return null
+  }
+
+  const token =
+    value
+      .trim()
+      .replace(
+        /^Bearer\s+/i,
+        '',
+      )
+      .trim()
+
+  return token || null
+}
+
+/* ============================================================
+   TOKEN EXTRACTION
+   ============================================================ */
+
+function extractToken(
+  value: unknown,
+): string | null {
+  if (!value) {
+    return null
+  }
+
+  /*
+   * Direct string token.
+   */
+  if (
+    typeof value ===
+    'string'
+  ) {
+    const direct =
+      cleanToken(value)
+
+    if (direct) {
+      return direct
+    }
+
+    /*
+     * Some applications store
+     * auth state as JSON.
+     */
+    try {
+      return extractToken(
+        JSON.parse(value),
+      )
+    } catch {
+      return null
+    }
+  }
+
+  if (
+    typeof value !==
+      'object' ||
+    value === null
+  ) {
+    return null
+  }
+
+  const object =
+    value as Record<
+      string,
+      unknown
+    >
+
+  /*
+   * Direct token fields.
+   */
+  const directKeys = [
+    'access_token',
+    'accessToken',
+    'token',
+    'jwt',
+    'jwt_token',
+    'cashguard_access_token',
+  ]
+
+  for (
+    const key of
+    directKeys
+  ) {
+    const token =
+      cleanToken(
+        object[key],
+      )
+
+    if (token) {
+      return token
+    }
+  }
+
+  /*
+   * Nested auth/session fields.
+   */
+  const nestedKeys = [
+    'data',
+    'auth',
+    'session',
+    'tokens',
+    'user',
+  ]
+
+  for (
+    const key of
+    nestedKeys
+  ) {
+    const token =
+      extractToken(
+        object[key],
+      )
+
+    if (token) {
+      return token
+    }
+  }
+
+  return null
+}
+
+/* ============================================================
+   STORAGE READER
+   ============================================================ */
+
+function storedValue(
+  keys: string[],
+): string {
+  if (
+    typeof window ===
+    'undefined'
+  ) {
     return ''
   }
 
@@ -85,18 +267,33 @@ function storedValue(keys: string[]): string {
     window.sessionStorage,
   ]
 
-  for (const storage of storages) {
-    for (const key of keys) {
+  for (
+    const storage of
+    storages
+  ) {
+    for (
+      const key of
+      keys
+    ) {
       try {
-        const value = storage
-          .getItem(key)
-          ?.trim()
+        const value =
+          storage.getItem(key)
 
-        if (value) {
-          return value
+        if (!value) {
+          continue
+        }
+
+        const token =
+          extractToken(value)
+
+        if (token) {
+          return token
         }
       } catch {
-        // Ignore storage access errors.
+        /*
+         * Ignore a single
+         * storage failure.
+         */
       }
     }
   }
@@ -104,19 +301,57 @@ function storedValue(keys: string[]): string {
   return ''
 }
 
+/* ============================================================
+   AUTH TOKEN
+   ============================================================ */
+
 function getToken(): string {
-  return storedValue(TOKEN_KEYS)
+  /*
+   * First look for normal token keys.
+   */
+  const directToken =
+    storedValue(
+      TOKEN_KEYS,
+    )
+
+  if (directToken) {
+    return directToken
+  }
+
+  /*
+   * Then look inside serialized
+   * authentication/session objects.
+   */
+  const nestedToken =
+    storedValue(
+      AUTH_OBJECT_KEYS,
+    )
+
+  return nestedToken
 }
+
+/* ============================================================
+   BUSINESS ID
+   ============================================================ */
 
 function getBusinessId(): string {
   return (
-    storedValue(BUSINESS_ID_KEYS) ||
+    storedValue(
+      BUSINESS_ID_KEYS,
+    ) ||
     ENV_BUSINESS_ID
   )
 }
 
+/* ============================================================
+   CLIENT AUTH CLEANUP
+   ============================================================ */
+
 function clearStoredTokens(): void {
-  if (typeof window === 'undefined') {
+  if (
+    typeof window ===
+    'undefined'
+  ) {
     return
   }
 
@@ -125,49 +360,124 @@ function clearStoredTokens(): void {
     window.sessionStorage,
   ]
 
-  for (const storage of storages) {
-    for (const key of TOKEN_KEYS) {
+  const keysToRemove = [
+    ...TOKEN_KEYS,
+    ...AUTH_OBJECT_KEYS,
+    'auth_logged_in',
+    'auth_expires_in',
+  ]
+
+  for (
+    const storage of
+    storages
+  ) {
+    for (
+      const key of
+      keysToRemove
+    ) {
       try {
-        storage.removeItem(key)
+        storage.removeItem(
+          key,
+        )
       } catch {
-        // Ignore storage cleanup errors.
+        /*
+         * Ignore storage
+         * cleanup errors.
+         */
       }
     }
   }
 
   try {
+    /*
+     * Notify other CashGuard
+     * components that the auth
+     * state has changed.
+     */
     window.dispatchEvent(
-      new Event('auth-changed'),
+      new Event(
+        'auth-changed',
+      ),
+    )
+
+    window.dispatchEvent(
+      new CustomEvent(
+        'cashguard-auth-required',
+      ),
     )
   } catch {
-    // Ignore event dispatch errors.
+    /*
+     * Ignore event errors.
+     */
   }
 }
 
+/* ============================================================
+   AUTHENTICATED PAISA FETCH
+   ============================================================ */
+
 /**
- * Authenticated Paisa fetch.
+ * Authenticated Paisa API request.
  *
- * Priority:
- * 1. Bearer token + cookie
- * 2. Cookie-only retry when Bearer returns 401
- * 3. Clear stale browser tokens when both fail
+ * Authentication strategy:
+ *
+ * 1. Bearer JWT + HttpOnly cookie
+ * 2. Cookie-only retry if Bearer returns 401
+ * 3. Clear stale browser auth if both fail
+ *
+ * The backend remains responsible for:
+ * - JWT validation
+ * - user lookup
+ * - active-user validation
+ * - business authorization
  */
 async function paisaFetch(
   input: RequestInfo | URL,
   init: RequestInit = {},
 ): Promise<Response> {
-  const token = getToken()
+  const token =
+    getToken()
 
-  const headers = new Headers(
-    init.headers,
-  )
+  const headers =
+    new Headers(
+      init.headers,
+    )
 
-  if (!headers.has('Accept')) {
+  /* ----------------------------------------------------------
+     ACCEPT
+     ---------------------------------------------------------- */
+
+  if (
+    !headers.has(
+      'Accept',
+    )
+  ) {
     headers.set(
       'Accept',
       'application/json',
     )
   }
+
+  /* ----------------------------------------------------------
+     CONTENT TYPE
+     ---------------------------------------------------------- */
+
+  if (
+    init.body &&
+    !(init.body instanceof FormData) &&
+    !headers.has(
+      'Content-Type',
+    )
+  ) {
+    headers.set(
+      'Content-Type',
+      'application/json',
+    )
+  }
+
+  /* ----------------------------------------------------------
+     BEARER TOKEN
+     ---------------------------------------------------------- */
 
   if (token) {
     headers.set(
@@ -176,68 +486,124 @@ async function paisaFetch(
     )
   }
 
-  const requestInit: RequestInit = {
-    ...init,
-    headers,
-    credentials:
-      init.credentials || 'include',
-  }
+  /* ----------------------------------------------------------
+     REQUEST CONFIG
+     ---------------------------------------------------------- */
 
-  const firstResponse = await fetch(
-    input,
-    requestInit,
-  )
+  const requestInit:
+    RequestInit = {
+      ...init,
+      headers,
+      credentials:
+        init.credentials ||
+        'include',
+      cache:
+        init.cache ||
+        'no-store',
+    }
 
+  /* ----------------------------------------------------------
+     FIRST REQUEST
+     ---------------------------------------------------------- */
+
+  const firstResponse =
+    await fetch(
+      input,
+      requestInit,
+    )
+
+  /*
+   * Anything except 401 is returned
+   * to the calling function.
+   */
   if (
-    firstResponse.status !== 401 ||
-    !token
+    firstResponse.status !==
+    401
   ) {
     return firstResponse
   }
 
   /*
-   * Bearer token may be stale while
-   * the HttpOnly auth cookie is still valid.
+   * If there is no stored token,
+   * the browser was already making
+   * a cookie-only request.
    */
-  const cookieOnlyHeaders = new Headers(
-    headers,
-  )
+  if (!token) {
+    clearStoredTokens()
+    return firstResponse
+  }
+
+  /* ----------------------------------------------------------
+     COOKIE-ONLY RETRY
+     ---------------------------------------------------------- */
+
+  const cookieOnlyHeaders =
+    new Headers(
+      headers,
+    )
 
   cookieOnlyHeaders.delete(
     'Authorization',
   )
 
-  const retryResponse = await fetch(
-    input,
-    {
-      ...init,
-      headers: cookieOnlyHeaders,
-      credentials: 'include',
-    },
-  )
+  const retryResponse =
+    await fetch(
+      input,
+      {
+        ...init,
+        headers:
+          cookieOnlyHeaders,
+        credentials:
+          'include',
+        cache:
+          init.cache ||
+          'no-store',
+      },
+    )
 
-  if (retryResponse.status !== 401) {
+  /*
+   * Cookie authentication worked.
+   */
+  if (
+    retryResponse.status !==
+    401
+  ) {
     return retryResponse
   }
 
+  /*
+   * Both authentication
+   * mechanisms failed.
+   */
   clearStoredTokens()
 
   return retryResponse
 }
 
+/* ============================================================
+   CONVERSATION CONTEXT
+   ============================================================ */
+
 function buildRecentContext(
   messages: Message[],
   previousIntent: string,
 ) {
-  const recentMessages = messages
-    .slice(-MAX_CONTEXT_MESSAGES)
-    .map((item) => ({
-      role: item.role,
-      text: item.text.slice(
-        0,
-        MAX_CONTEXT_MESSAGE_LENGTH,
-      ),
-    }))
+  const recentMessages =
+    messages
+      .slice(
+        -MAX_CONTEXT_MESSAGES,
+      )
+      .map(
+        (item) => ({
+          role:
+            item.role,
+          text:
+            item.text.slice(
+              0,
+              MAX_CONTEXT_MESSAGE_LENGTH,
+            ),
+        }),
+      )
 
   return {
     ...(previousIntent
@@ -246,6 +612,7 @@ function buildRecentContext(
             previousIntent,
         }
       : {}),
+
     ...(recentMessages.length
       ? {
           recent_messages:
@@ -255,17 +622,29 @@ function buildRecentContext(
   }
 }
 
+/* ============================================================
+   RESPONSE PARSER
+   ============================================================ */
+
 async function parseResponseBody(
   response: Response,
 ): Promise<
-  PaisaReply & PaisaErrorResponse
+  PaisaReply &
+  PaisaErrorResponse
 > {
   try {
-    return (await response.json()) as
-      | (PaisaReply &
-          PaisaErrorResponse)
+    return (
+      (await response.json()) as
+        | (
+            PaisaReply &
+            PaisaErrorResponse
+          )
+    )
   } catch {
-    if (response.status === 401) {
+    if (
+      response.status ===
+      401
+    ) {
       throw new Error(
         'Your session has expired. Please login again.',
       )
@@ -277,69 +656,137 @@ async function parseResponseBody(
   }
 }
 
+/* ============================================================
+   RESPONSE ERROR MESSAGES
+   ============================================================ */
+
 function getResponseErrorMessage(
   response: Response,
-  body: PaisaErrorResponse,
+  body:
+    PaisaErrorResponse,
 ): string {
-  if (body.detail) {
+  if (
+    body.detail
+  ) {
     return body.detail
   }
 
-  if (body.message) {
+  if (
+    body.message
+  ) {
     return body.message
   }
 
-  if (response.status === 401) {
-    return 'Your session has expired. Please login again.'
+  if (
+    response.status ===
+    401
+  ) {
+    return (
+      'Your session has expired. Please login again.'
+    )
   }
 
-  if (response.status === 403) {
-    return 'You are not authorized to access this business.'
+  if (
+    response.status ===
+    403
+  ) {
+    return (
+      'You are not authorized to access this business.'
+    )
   }
 
-  if (response.status === 404) {
-    return 'The requested Paisa resource was not found.'
+  if (
+    response.status ===
+    404
+  ) {
+    return (
+      'The requested Paisa resource was not found.'
+    )
   }
 
-  if (response.status === 409) {
-    return 'Paisa could not connect to the selected business.'
+  if (
+    response.status ===
+    409
+  ) {
+    return (
+      'Paisa could not connect to the selected business.'
+    )
   }
 
-  if (response.status >= 500) {
-    return 'Paisa is temporarily unavailable. No financial data was changed.'
+  if (
+    response.status >=
+    500
+  ) {
+    return (
+      'Paisa is temporarily unavailable. No financial data was changed.'
+    )
   }
 
-  return `Paisa request failed with status ${response.status}.`
+  return (
+    `Paisa request failed with status ${response.status}.`
+  )
 }
 
-export default function PaisaAgent() {
-  const searchParams = useSearchParams()
+/* ============================================================
+   PAISA AGENT
+   ============================================================ */
 
-  const [messages, setMessages] =
+export default function PaisaAgent() {
+  const searchParams =
+    useSearchParams()
+
+  const [
+    messages,
+    setMessages,
+  ] =
     useState<Message[]>([
       INITIAL_MESSAGE,
     ])
 
-  const [draft, setDraft] =
+  const [
+    draft,
+    setDraft,
+  ] =
     useState('')
 
-  const [loading, setLoading] =
+  const [
+    loading,
+    setLoading,
+  ] =
     useState(false)
 
-  const [previousIntent, setPreviousIntent] =
+  const [
+    previousIntent,
+    setPreviousIntent,
+  ] =
     useState('')
 
-  const [conversationId, setConversationId] =
+  const [
+    conversationId,
+    setConversationId,
+  ] =
     useState('')
 
-  const [businessId, setBusinessId] =
+  const [
+    businessId,
+    setBusinessId,
+  ] =
     useState('')
 
-  const [errorMessage, setErrorMessage] =
+  const [
+    errorMessage,
+    setErrorMessage,
+  ] =
     useState('')
 
   const endRef =
-    useRef<HTMLDivElement>(null)
+    useRef<
+      HTMLDivElement
+    >(null)
+
+  /* ==========================================================
+     INITIAL BUSINESS ID
+     ========================================================== */
 
   useEffect(() => {
     const resolvedBusinessId =
@@ -350,12 +797,53 @@ export default function PaisaAgent() {
     )
   }, [])
 
+  /* ==========================================================
+     AUTH STATE LISTENER
+     ========================================================== */
+
   useEffect(() => {
-    endRef.current?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'end',
-    })
-  }, [messages, loading])
+    const handleAuthChanged =
+      () => {
+        const resolvedBusinessId =
+          getBusinessId()
+
+        setBusinessId(
+          resolvedBusinessId,
+        )
+      }
+
+    window.addEventListener(
+      'auth-changed',
+      handleAuthChanged,
+    )
+
+    return () => {
+      window.removeEventListener(
+        'auth-changed',
+        handleAuthChanged,
+      )
+    }
+  }, [])
+
+  /* ==========================================================
+     AUTO SCROLL
+     ========================================================== */
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView(
+      {
+        behavior: 'smooth',
+        block: 'end',
+      },
+    )
+  }, [
+    messages,
+    loading,
+  ])
+
+  /* ==========================================================
+     URL PROMPT
+     ========================================================== */
 
   useEffect(() => {
     const prompt =
@@ -371,12 +859,26 @@ export default function PaisaAgent() {
         ),
       )
     }
-  }, [searchParams])
+  }, [
+    searchParams,
+  ])
+
+  /* ==========================================================
+     RESET CONVERSATION
+     ========================================================== */
 
   function resetConversation() {
-    setConversationId('')
-    setPreviousIntent('')
-    setErrorMessage('')
+    setConversationId(
+      '',
+    )
+
+    setPreviousIntent(
+      '',
+    )
+
+    setErrorMessage(
+      '',
+    )
 
     setMessages([
       {
@@ -385,92 +887,194 @@ export default function PaisaAgent() {
     ])
   }
 
+  /* ==========================================================
+     SUBMIT MESSAGE
+     ========================================================== */
+
   async function submit(
     event: FormEvent<HTMLFormElement>,
   ) {
     event.preventDefault()
 
-    if (loading) {
+    if (
+      loading
+    ) {
       return
     }
 
-    const message = draft.trim()
+    const message =
+      draft.trim()
 
     if (!message) {
       return
     }
 
+    /*
+     * Resolve business ID from state
+     * first and storage/env second.
+     */
     const resolvedBusinessId =
-      businessId || getBusinessId()
+      businessId ||
+      getBusinessId()
+
+    /*
+     * Resolve token before adding
+     * the user message.
+     */
+    const token =
+      getToken()
+
+    /*
+     * Give a clear client-side error
+     * rather than sending an obviously
+     * unauthenticated request.
+     */
+    if (!token) {
+      setErrorMessage(
+        'Your CashGuard session is missing. Please login again before using Paisa.',
+      )
+
+      return
+    }
+
+    /*
+     * A business ID is required for
+     * live business intelligence.
+     */
+    if (
+      !resolvedBusinessId
+    ) {
+      setErrorMessage(
+        'Business ID is missing for the current CashGuard session.',
+      )
+
+      return
+    }
 
     const userMessage: Message = {
       role: 'user',
       text: message,
     }
 
-    const nextMessages = [
-      ...messages,
-      userMessage,
-    ]
+    const nextMessages =
+      [
+        ...messages,
+        userMessage,
+      ]
 
-    setDraft('')
-    setErrorMessage('')
-    setMessages(nextMessages)
-    setLoading(true)
+    setDraft(
+      '',
+    )
+
+    setErrorMessage(
+      '',
+    )
+
+    setMessages(
+      nextMessages,
+    )
+
+    setLoading(
+      true,
+    )
 
     try {
+      /* ------------------------------------------------------
+         BUILD LIVE CONVERSATION CONTEXT
+         ------------------------------------------------------ */
+
       const context =
         buildRecentContext(
           nextMessages,
           previousIntent,
         )
 
-      const payload: Record<
-        string,
-        unknown
-      > = {
-        message: message.slice(
-          0,
-          MAX_MESSAGE_LENGTH,
-        ),
+      /* ------------------------------------------------------
+         REQUEST PAYLOAD
+         ------------------------------------------------------ */
+
+      const payload:
+        Record<
+          string,
+          unknown
+        > = {
+        message:
+          message.slice(
+            0,
+            MAX_MESSAGE_LENGTH,
+          ),
+
         context,
+
+        /*
+         * Paisa requests a 7-day
+         * forecast horizon by default.
+         */
         horizon_days: 7,
       }
 
-      if (resolvedBusinessId) {
+      if (
+        resolvedBusinessId
+      ) {
         payload.business_id =
           resolvedBusinessId
       }
 
-      if (conversationId) {
+      if (
+        conversationId
+      ) {
         payload.conversation_id =
           conversationId
       }
+
+      /* ------------------------------------------------------
+         API REQUEST
+         ------------------------------------------------------ */
 
       const response =
         await paisaFetch(
           `${API_BASE_URL}/api/ai/paisa/chat`,
           {
-            method: 'POST',
-            credentials: 'include',
+            method:
+              'POST',
+
+            credentials:
+              'include',
+
             headers: {
               'Content-Type':
                 'application/json',
+
               Accept:
                 'application/json',
             },
+
             body:
-              JSON.stringify(payload),
-            cache: 'no-store',
+              JSON.stringify(
+                payload,
+              ),
+
+            cache:
+              'no-store',
           },
         )
+
+      /* ------------------------------------------------------
+         PARSE RESPONSE
+         ------------------------------------------------------ */
 
       const body =
         await parseResponseBody(
           response,
         )
 
-      if (!response.ok) {
+      /* ------------------------------------------------------
+         ERROR HANDLING
+         ------------------------------------------------------ */
+
+      if (
+        !response.ok
+      ) {
         throw new Error(
           getResponseErrorMessage(
             response,
@@ -478,6 +1082,10 @@ export default function PaisaAgent() {
           ),
         )
       }
+
+      /* ------------------------------------------------------
+         CONVERSATION
+         ------------------------------------------------------ */
 
       if (
         body.conversation_id
@@ -487,31 +1095,54 @@ export default function PaisaAgent() {
         )
       }
 
-      if (body.business_id) {
+      /* ------------------------------------------------------
+         BUSINESS
+         ------------------------------------------------------ */
+
+      if (
+        body.business_id
+      ) {
         setBusinessId(
           body.business_id,
         )
       }
 
+      /* ------------------------------------------------------
+         INTENT
+         ------------------------------------------------------ */
+
       setPreviousIntent(
-        body.intent || '',
+        body.intent ||
+          '',
       )
+
+      /* ------------------------------------------------------
+         ASSISTANT RESPONSE
+         ------------------------------------------------------ */
 
       const assistantText =
         body.response?.trim() ||
         'I could not generate a response from the available CashGuard data.'
 
-      const assistantMessage: Message = {
-        role: 'assistant',
-        text: assistantText,
+      const assistantMessage:
+        Message = {
+        role:
+          'assistant',
+
+        text:
+          assistantText,
+
         sources:
           Array.isArray(
             body.sources,
           )
             ? body.sources
             : [],
+
         intent:
-          body.intent || '',
+          body.intent ||
+          '',
+
         needsConfirmation:
           Boolean(
             body.needs_confirmation,
@@ -519,12 +1150,16 @@ export default function PaisaAgent() {
       }
 
       setMessages(
-        (current) => [
+        (
+          current,
+        ) => [
           ...current,
           assistantMessage,
         ],
       )
-    } catch (error) {
+    } catch (
+      error
+    ) {
       const messageText =
         error instanceof Error
           ? error.message
@@ -535,31 +1170,49 @@ export default function PaisaAgent() {
       )
 
       setMessages(
-        (current) => [
+        (
+          current,
+        ) => [
           ...current,
           {
-            role: 'assistant',
-            text: messageText,
+            role:
+              'assistant',
+
+            text:
+              messageText,
           },
         ],
       )
     } finally {
-      setLoading(false)
+      setLoading(
+        false,
+      )
     }
   }
+
+  /* ==========================================================
+     UI
+     ========================================================== */
 
   return (
     <main className="foundation-content mx-auto max-w-4xl">
       <section className="foundation-card overflow-hidden p-0">
-        {/* Header */}
+
+        {/* ==================================================
+            HEADER
+            ================================================== */}
+
         <div className="border-b border-border bg-muted/30 p-6">
           <div className="flex items-start justify-between gap-4">
+
             <div className="flex min-w-0 items-center gap-3">
+
               <div className="card-icon sky shrink-0">
                 <Bot size={22} />
               </div>
 
               <div className="min-w-0">
+
                 <p className="auth-eyebrow">
                   CASHGUARD-AI AGENT
                 </p>
@@ -576,7 +1229,9 @@ export default function PaisaAgent() {
                   guessing or executing
                   financial actions.
                 </p>
+
               </div>
+
             </div>
 
             <button
@@ -584,20 +1239,31 @@ export default function PaisaAgent() {
               onClick={
                 resetConversation
               }
-              disabled={loading}
+              disabled={
+                loading
+              }
               className="secondary-button shrink-0"
               title="Start a new Paisa conversation"
             >
               <RefreshCw
                 size={14}
               />
+
               New chat
             </button>
+
           </div>
 
-          {(businessId ||
-            conversationId) && (
+          {/* ================================================
+              CONNECTION STATUS
+              ================================================ */}
+
+          {(
+            businessId ||
+            conversationId
+          ) && (
             <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted-foreground">
+
               {businessId && (
                 <span className="rounded-full border border-border bg-background px-3 py-1">
                   Business connected
@@ -609,17 +1275,36 @@ export default function PaisaAgent() {
                   Live conversation
                 </span>
               )}
+
             </div>
           )}
+
         </div>
 
-        {/* Chat */}
+        {/* ==================================================
+            ERROR
+            ================================================== */}
+
+        {errorMessage && (
+          <div className="mx-4 mt-4 rounded-lg border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
+            {errorMessage}
+          </div>
+        )}
+
+        {/* ==================================================
+            CHAT
+            ================================================== */}
+
         <div
           className="min-h-[390px] space-y-4 p-5"
           aria-live="polite"
         >
+
           {messages.map(
-            (item, index) => (
+            (
+              item,
+              index,
+            ) => (
               <div
                 key={`${item.role}-${index}`}
                 className={`max-w-[88%] whitespace-pre-line rounded-xl px-4 py-3 text-sm leading-6 ${
@@ -629,7 +1314,12 @@ export default function PaisaAgent() {
                     : 'bg-muted text-foreground'
                 }`}
               >
+
                 {item.text}
+
+                {/* ==========================================
+                    FINANCIAL ACTION SAFETY
+                    ========================================== */}
 
                 {item.needsConfirmation && (
                   <p className="mt-3 border-t border-border/60 pt-2 text-xs font-medium text-muted-foreground">
@@ -637,6 +1327,10 @@ export default function PaisaAgent() {
                     before any financial action.
                   </p>
                 )}
+
+                {/* ==========================================
+                    SOURCES
+                    ========================================== */}
 
                 {item.sources &&
                   item.sources.length >
@@ -648,41 +1342,64 @@ export default function PaisaAgent() {
                       )}
                     </p>
                   )}
+
+                {/* ==========================================
+                    INTENT
+                    ========================================== */}
+
+                {item.intent && (
+                  <p className="mt-2 text-[10px] opacity-60">
+                    Intent:{' '}
+                    {item.intent}
+                  </p>
+                )}
+
               </div>
             ),
           )}
 
+          {/* =================================================
+              LOADING
+              ================================================= */}
+
           {loading && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
+
               <Loader2
                 className="animate-spin"
                 size={16}
               />
+
               Checking Paisa and CashGuard context…
+
             </div>
           )}
 
-          {errorMessage &&
-            !loading && (
-              <div className="rounded-lg border border-border bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
-                Paisa could not complete
-                the last request. Your
-                existing financial data
-                was not changed.
-              </div>
-            )}
+          <div
+            ref={endRef}
+          />
 
-          <div ref={endRef} />
         </div>
 
-        {/* Input */}
+        {/* ==================================================
+            INPUT
+            ================================================== */}
+
         <form
-          onSubmit={submit}
+          onSubmit={
+            submit
+          }
           className="flex gap-2 border-t border-border p-4"
         >
+
           <input
-            value={draft}
-            onChange={(event) =>
+            value={
+              draft
+            }
+
+            onChange={(
+              event,
+            ) =>
               setDraft(
                 event.target.value.slice(
                   0,
@@ -690,11 +1407,20 @@ export default function PaisaAgent() {
                 ),
               )
             }
+
             className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none"
+
             placeholder="e.g. Agale 7 din mein cash shortage ka risk hai?"
-            maxLength={MAX_MESSAGE_LENGTH}
+
+            maxLength={
+              MAX_MESSAGE_LENGTH
+            }
+
             aria-label="Ask Paisa"
-            disabled={loading}
+
+            disabled={
+              loading
+            }
           />
 
           <button
@@ -705,45 +1431,70 @@ export default function PaisaAgent() {
               !draft.trim()
             }
           >
+
             {loading ? (
               <>
                 <Loader2
                   size={16}
                   className="animate-spin"
                 />
+
                 Checking…
               </>
             ) : (
               <>
-                <Send size={16} />
+                <Send
+                  size={16}
+                />
+
                 Ask Paisa
               </>
             )}
+
           </button>
+
         </form>
+
       </section>
 
-      {/* Suggested questions */}
+      {/* ====================================================
+          SUGGESTED QUESTIONS
+          ==================================================== */}
+
       <div className="mt-4 flex flex-wrap gap-2 text-sm">
+
         {SUGGESTED_QUESTIONS.map(
-          (question) => (
+          (
+            question,
+          ) => (
             <button
-              key={question}
+              key={
+                question
+              }
               type="button"
               className="secondary-button"
               onClick={() =>
-                setDraft(question)
+                setDraft(
+                  question,
+                )
               }
-              disabled={loading}
+              disabled={
+                loading
+              }
             >
+
               <Sparkles
                 size={14}
               />
+
               {question}
+
             </button>
           ),
         )}
+
       </div>
+
     </main>
   )
 }

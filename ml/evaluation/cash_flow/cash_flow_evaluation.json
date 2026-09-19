@@ -1,90 +1,301 @@
 {
+  "success": true,
+  "business_id": "9ae1ca9a-c01b-423f-8f5c-7af4a702a6f1",
+  "trained_at_utc": "2026-09-19T18:13:48.826196+00:00",
   "data_quality": {
-    "daily_rows": 731,
-    "feature_ready_rows": 701,
+    "daily_rows": 764,
+    "feature_ready_rows": 734,
     "date_range": {
       "start": "2024-08-15",
-      "end": "2026-08-15"
+      "end": "2026-09-17"
     },
     "missing_dates": 0,
+    "duplicate_dates": 0,
     "null_values_in_daily_data": 0,
-    "null_values_in_feature_data": 0,
-    "leakage_control": "Rolling and lag features use values through t-1 only; target is day t net cash flow."
+    "null_values_in_feature_data": 16,
+    "leakage_control": "All rolling and lag features are based only on historical values through t-1.",
+    "final_training_rows": 727,
+    "final_training_date_range": [
+      "2024-09-21",
+      "2026-09-17"
+    ],
+    "component_lag_rows_removed": 7
   },
   "split_rows": {
-    "train": 420,
-    "validation": 140,
-    "test": 141
+    "train": 436,
+    "validation": 145,
+    "test": 146
   },
-  "evaluations": {
-    "seasonal_naive": {
-      "validation": {
-        "mae": 92416.59,
-        "rmse": 122507.45,
-        "r2": -0.9457
-      },
-      "test": {
-        "mae": 111529.15,
-        "rmse": 137610.04,
-        "r2": -1.0116
-      }
-    },
-    "xgboost": {
-      "validation": {
-        "mae": 80534.8,
-        "rmse": 103280.71,
-        "r2": -0.3829
-      },
-      "test": {
-        "mae": 97225.54,
-        "rmse": 130436.24,
-        "r2": -0.8073
-      }
-    }
+  "date_ranges": {
+    "train": [
+      "2024-09-21",
+      "2025-11-30"
+    ],
+    "validation": [
+      "2025-12-01",
+      "2026-04-24"
+    ],
+    "test": [
+      "2026-04-25",
+      "2026-09-17"
+    ]
   },
-  "selected_model": "xgboost",
-  "forecast_example": [
-    {
-      "forecast_date": "2026-08-16",
-      "predicted_inflow": null,
-      "predicted_outflow": null,
-      "predicted_net_cash_flow": -121410.97
+  "net_cash_flow": {
+    "selected_model": "xgboost",
+    "target": "net_cash_flow",
+    "feature_count": 12,
+    "feature_columns": [
+      "cash_inflow_rolling_7",
+      "cash_outflow_rolling_7",
+      "net_cash_flow_rolling_7",
+      "cash_inflow_rolling_30",
+      "cash_outflow_rolling_30",
+      "net_cash_flow_rolling_30",
+      "net_cash_flow_lag_1",
+      "net_cash_flow_lag_7",
+      "day_of_week",
+      "day_of_month",
+      "month",
+      "days_since_series_start"
+    ],
+    "evaluation": {
+      "target": "net_cash_flow",
+      "selected_model": "xgboost",
+      "seasonal_naive": {
+        "validation": {
+          "mae": 98491.24,
+          "rmse": 126651.39,
+          "r2": -1.1428
+        },
+        "test": {
+          "mae": 110256.64,
+          "rmse": 137949.19,
+          "r2": -0.9989
+        }
+      },
+      "xgboost": {
+        "validation": {
+          "mae": 85423.18,
+          "rmse": 113293.1,
+          "r2": -0.7146
+        },
+        "test": {
+          "mae": 97675.67,
+          "rmse": 129167.8,
+          "r2": -0.7525
+        },
+        "selection": {
+          "name": "xgboost_depth_4",
+          "metrics": {
+            "mae": 85423.18,
+            "rmse": 113293.1,
+            "r2": -0.7146
+          },
+          "parameters": {
+            "n_estimators": 350,
+            "max_depth": 4,
+            "learning_rate": 0.03,
+            "subsample": 0.9,
+            "colsample_bytree": 0.9
+          }
+        }
+      },
+      "feature_columns": [
+        "cash_inflow_rolling_7",
+        "cash_outflow_rolling_7",
+        "net_cash_flow_rolling_7",
+        "cash_inflow_rolling_30",
+        "cash_outflow_rolling_30",
+        "net_cash_flow_rolling_30",
+        "net_cash_flow_lag_1",
+        "net_cash_flow_lag_7",
+        "day_of_week",
+        "day_of_month",
+        "month",
+        "days_since_series_start"
+      ],
+      "feature_count": 12
     },
-    {
-      "forecast_date": "2026-08-17",
-      "predicted_inflow": null,
-      "predicted_outflow": null,
-      "predicted_net_cash_flow": -117697.93
+    "model_file": "cash_flow_forecast_model.joblib"
+  },
+  "cash_inflow": {
+    "target": "cash_inflow",
+    "feature_count": 16,
+    "feature_columns": [
+      "cash_inflow_rolling_7",
+      "cash_outflow_rolling_7",
+      "net_cash_flow_rolling_7",
+      "cash_inflow_rolling_30",
+      "cash_outflow_rolling_30",
+      "net_cash_flow_rolling_30",
+      "net_cash_flow_lag_1",
+      "net_cash_flow_lag_7",
+      "day_of_week",
+      "day_of_month",
+      "month",
+      "days_since_series_start",
+      "cash_inflow_lag_1",
+      "cash_inflow_lag_7",
+      "cash_outflow_lag_1",
+      "cash_outflow_lag_7"
+    ],
+    "evaluation": {
+      "target": "cash_inflow",
+      "selected_model": "xgboost",
+      "seasonal_naive": {
+        "validation": {
+          "mae": 12469.87,
+          "rmse": 16435.45,
+          "r2": -0.6776
+        },
+        "test": {
+          "mae": 12018.16,
+          "rmse": 16215.89,
+          "r2": 0.1245
+        }
+      },
+      "xgboost": {
+        "validation": {
+          "mae": 9921.21,
+          "rmse": 12918.89,
+          "r2": -0.0365
+        },
+        "test": {
+          "mae": 14291.46,
+          "rmse": 17206.88,
+          "r2": 0.0142
+        },
+        "selection": {
+          "name": "xgboost_depth_4",
+          "metrics": {
+            "mae": 9921.21,
+            "rmse": 12918.89,
+            "r2": -0.0365
+          },
+          "parameters": {
+            "n_estimators": 350,
+            "max_depth": 4,
+            "learning_rate": 0.03,
+            "subsample": 0.9,
+            "colsample_bytree": 0.9
+          }
+        }
+      },
+      "feature_columns": [
+        "cash_inflow_rolling_7",
+        "cash_outflow_rolling_7",
+        "net_cash_flow_rolling_7",
+        "cash_inflow_rolling_30",
+        "cash_outflow_rolling_30",
+        "net_cash_flow_rolling_30",
+        "net_cash_flow_lag_1",
+        "net_cash_flow_lag_7",
+        "day_of_week",
+        "day_of_month",
+        "month",
+        "days_since_series_start",
+        "cash_inflow_lag_1",
+        "cash_inflow_lag_7",
+        "cash_outflow_lag_1",
+        "cash_outflow_lag_7"
+      ],
+      "feature_count": 16
     },
-    {
-      "forecast_date": "2026-08-18",
-      "predicted_inflow": null,
-      "predicted_outflow": null,
-      "predicted_net_cash_flow": -108362.62
+    "model_file": "cash_flow_inflow_model.joblib"
+  },
+  "cash_outflow": {
+    "target": "cash_outflow",
+    "feature_count": 16,
+    "feature_columns": [
+      "cash_inflow_rolling_7",
+      "cash_outflow_rolling_7",
+      "net_cash_flow_rolling_7",
+      "cash_inflow_rolling_30",
+      "cash_outflow_rolling_30",
+      "net_cash_flow_rolling_30",
+      "net_cash_flow_lag_1",
+      "net_cash_flow_lag_7",
+      "day_of_week",
+      "day_of_month",
+      "month",
+      "days_since_series_start",
+      "cash_inflow_lag_1",
+      "cash_inflow_lag_7",
+      "cash_outflow_lag_1",
+      "cash_outflow_lag_7"
+    ],
+    "evaluation": {
+      "target": "cash_outflow",
+      "selected_model": "xgboost",
+      "seasonal_naive": {
+        "validation": {
+          "mae": 98230.64,
+          "rmse": 124640.9,
+          "r2": -1.1734
+        },
+        "test": {
+          "mae": 109537.91,
+          "rmse": 136932.45,
+          "r2": -0.809
+        }
+      },
+      "xgboost": {
+        "validation": {
+          "mae": 80801.73,
+          "rmse": 104760.42,
+          "r2": -0.5354
+        },
+        "test": {
+          "mae": 96382.03,
+          "rmse": 127386.0,
+          "r2": -0.5656
+        },
+        "selection": {
+          "name": "xgboost_depth_4",
+          "metrics": {
+            "mae": 80801.73,
+            "rmse": 104760.42,
+            "r2": -0.5354
+          },
+          "parameters": {
+            "n_estimators": 350,
+            "max_depth": 4,
+            "learning_rate": 0.03,
+            "subsample": 0.9,
+            "colsample_bytree": 0.9
+          }
+        }
+      },
+      "feature_columns": [
+        "cash_inflow_rolling_7",
+        "cash_outflow_rolling_7",
+        "net_cash_flow_rolling_7",
+        "cash_inflow_rolling_30",
+        "cash_outflow_rolling_30",
+        "net_cash_flow_rolling_30",
+        "net_cash_flow_lag_1",
+        "net_cash_flow_lag_7",
+        "day_of_week",
+        "day_of_month",
+        "month",
+        "days_since_series_start",
+        "cash_inflow_lag_1",
+        "cash_inflow_lag_7",
+        "cash_outflow_lag_1",
+        "cash_outflow_lag_7"
+      ],
+      "feature_count": 16
     },
-    {
-      "forecast_date": "2026-08-19",
-      "predicted_inflow": null,
-      "predicted_outflow": null,
-      "predicted_net_cash_flow": -112789.95
-    },
-    {
-      "forecast_date": "2026-08-20",
-      "predicted_inflow": null,
-      "predicted_outflow": null,
-      "predicted_net_cash_flow": -159003.0
-    },
-    {
-      "forecast_date": "2026-08-21",
-      "predicted_inflow": null,
-      "predicted_outflow": null,
-      "predicted_net_cash_flow": -120914.8
-    },
-    {
-      "forecast_date": "2026-08-22",
-      "predicted_inflow": null,
-      "predicted_outflow": null,
-      "predicted_net_cash_flow": -130705.38
-    }
-  ]
+    "model_file": "cash_flow_outflow_model.joblib"
+  },
+  "output_files": {
+    "net_model": "D:\\cashguard-ai\\ml\\models\\cash_flow_forecast_model.joblib",
+    "inflow_model": "D:\\cashguard-ai\\ml\\models\\cash_flow_inflow_model.joblib",
+    "outflow_model": "D:\\cashguard-ai\\ml\\models\\cash_flow_outflow_model.joblib",
+    "net_metadata": "D:\\cashguard-ai\\ml\\models\\cash_flow_forecast_metadata.json",
+    "component_metadata": "D:\\cashguard-ai\\ml\\models\\cash_flow_component_forecast_metadata.json",
+    "evaluation": "D:\\cashguard-ai\\ml\\evaluation\\cash_flow\\cash_flow_evaluation.json",
+    "quality": "D:\\cashguard-ai\\ml\\evaluation\\cash_flow\\cash_flow_data_quality.json",
+    "dataset": "D:\\cashguard-ai\\ml\\data\\processed\\daily_cash_flow_features.csv"
+  }
 }

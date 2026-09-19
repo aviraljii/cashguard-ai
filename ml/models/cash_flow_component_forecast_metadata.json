@@ -1,0 +1,159 @@
+{
+  "model_type": "xgboost_regressor",
+  "business_id": "9ae1ca9a-c01b-423f-8f5c-7af4a702a6f1",
+  "trained_at_utc": "2026-09-19T18:13:48.826196+00:00",
+  "training_date_range": [
+    "2024-09-21",
+    "2025-11-30"
+  ],
+  "validation_date_range": [
+    "2025-12-01",
+    "2026-04-24"
+  ],
+  "test_date_range": [
+    "2026-04-25",
+    "2026-09-17"
+  ],
+  "feature_columns": [
+    "cash_inflow_rolling_7",
+    "cash_outflow_rolling_7",
+    "net_cash_flow_rolling_7",
+    "cash_inflow_rolling_30",
+    "cash_outflow_rolling_30",
+    "net_cash_flow_rolling_30",
+    "net_cash_flow_lag_1",
+    "net_cash_flow_lag_7",
+    "day_of_week",
+    "day_of_month",
+    "month",
+    "days_since_series_start",
+    "cash_inflow_lag_1",
+    "cash_inflow_lag_7",
+    "cash_outflow_lag_1",
+    "cash_outflow_lag_7"
+  ],
+  "cash_inflow": {
+    "target": "cash_inflow",
+    "selected_model": "xgboost",
+    "seasonal_naive": {
+      "validation": {
+        "mae": 12469.87,
+        "rmse": 16435.45,
+        "r2": -0.6776
+      },
+      "test": {
+        "mae": 12018.16,
+        "rmse": 16215.89,
+        "r2": 0.1245
+      }
+    },
+    "xgboost": {
+      "validation": {
+        "mae": 9921.21,
+        "rmse": 12918.89,
+        "r2": -0.0365
+      },
+      "test": {
+        "mae": 14291.46,
+        "rmse": 17206.88,
+        "r2": 0.0142
+      },
+      "selection": {
+        "name": "xgboost_depth_4",
+        "metrics": {
+          "mae": 9921.21,
+          "rmse": 12918.89,
+          "r2": -0.0365
+        },
+        "parameters": {
+          "n_estimators": 350,
+          "max_depth": 4,
+          "learning_rate": 0.03,
+          "subsample": 0.9,
+          "colsample_bytree": 0.9
+        }
+      }
+    },
+    "feature_columns": [
+      "cash_inflow_rolling_7",
+      "cash_outflow_rolling_7",
+      "net_cash_flow_rolling_7",
+      "cash_inflow_rolling_30",
+      "cash_outflow_rolling_30",
+      "net_cash_flow_rolling_30",
+      "net_cash_flow_lag_1",
+      "net_cash_flow_lag_7",
+      "day_of_week",
+      "day_of_month",
+      "month",
+      "days_since_series_start",
+      "cash_inflow_lag_1",
+      "cash_inflow_lag_7",
+      "cash_outflow_lag_1",
+      "cash_outflow_lag_7"
+    ],
+    "feature_count": 16
+  },
+  "cash_outflow": {
+    "target": "cash_outflow",
+    "selected_model": "xgboost",
+    "seasonal_naive": {
+      "validation": {
+        "mae": 98230.64,
+        "rmse": 124640.9,
+        "r2": -1.1734
+      },
+      "test": {
+        "mae": 109537.91,
+        "rmse": 136932.45,
+        "r2": -0.809
+      }
+    },
+    "xgboost": {
+      "validation": {
+        "mae": 80801.73,
+        "rmse": 104760.42,
+        "r2": -0.5354
+      },
+      "test": {
+        "mae": 96382.03,
+        "rmse": 127386.0,
+        "r2": -0.5656
+      },
+      "selection": {
+        "name": "xgboost_depth_4",
+        "metrics": {
+          "mae": 80801.73,
+          "rmse": 104760.42,
+          "r2": -0.5354
+        },
+        "parameters": {
+          "n_estimators": 350,
+          "max_depth": 4,
+          "learning_rate": 0.03,
+          "subsample": 0.9,
+          "colsample_bytree": 0.9
+        }
+      }
+    },
+    "feature_columns": [
+      "cash_inflow_rolling_7",
+      "cash_outflow_rolling_7",
+      "net_cash_flow_rolling_7",
+      "cash_inflow_rolling_30",
+      "cash_outflow_rolling_30",
+      "net_cash_flow_rolling_30",
+      "net_cash_flow_lag_1",
+      "net_cash_flow_lag_7",
+      "day_of_week",
+      "day_of_month",
+      "month",
+      "days_since_series_start",
+      "cash_inflow_lag_1",
+      "cash_inflow_lag_7",
+      "cash_outflow_lag_1",
+      "cash_outflow_lag_7"
+    ],
+    "feature_count": 16
+  }
+}
